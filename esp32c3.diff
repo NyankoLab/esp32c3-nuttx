@@ -1,0 +1,61 @@
+diff --git a/arch/risc-v/src/common/espressif/Wireless.mk b/arch/risc-v/src/common/espressif/Wireless.mk
+index e2e627ca9f..7ac5c92aef 100644
+--- a/arch/risc-v/src/common/espressif/Wireless.mk
++++ b/arch/risc-v/src/common/espressif/Wireless.mk
+@@ -28,7 +28,8 @@ EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$
+ EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_phy$(DELIM)lib$(DELIM)$(CHIP_SERIES)
+ EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_wifi$(DELIM)lib$(DELIM)$(CHIP_SERIES)
+ 
+-EXTRA_LIBS += -lphy -lcoexist -lmesh
++EXTRA_LIBS += -lphy -lcoexist
+ 
+ ifeq ($(CONFIG_ESPRESSIF_WIFI),y)
+ 
+diff --git a/arch/risc-v/src/common/espressif/esp_wifi_utils.h b/arch/risc-v/src/common/espressif/esp_wifi_utils.h
+index 738fbbed08..17914d9554 100644
+--- a/arch/risc-v/src/common/espressif/esp_wifi_utils.h
++++ b/arch/risc-v/src/common/espressif/esp_wifi_utils.h
+@@ -45,6 +45,8 @@ extern "C"
+  * Public Function Prototypes
+  ****************************************************************************/
+ 
++struct iwreq;
++
+ /****************************************************************************
+  * Name: esp_wifi_start_scan
+  *
+diff --git a/arch/risc-v/src/common/riscv_initialize.c b/arch/risc-v/src/common/riscv_initialize.c
+index 9d0f1c81d7..6305a4a565 100644
+--- a/arch/risc-v/src/common/riscv_initialize.c
++++ b/arch/risc-v/src/common/riscv_initialize.c
+@@ -130,3 +130,8 @@ void up_initialize(void)
+ 
+   board_autoled_on(LED_IRQSENABLED);
+ }
++
++uint32_t mesh_sta_auth_expire_time(void)
++{
++    return 0;
++}
+diff --git a/sched/wdog/wd_start.c b/sched/wdog/wd_start.c
+index 3a0fd5a831..4a4cb7c01b 100644
+--- a/sched/wdog/wd_start.c
++++ b/sched/wdog/wd_start.c
+@@ -120,7 +120,7 @@ static inline void wd_expiration(void)
+ 
+       /* Execute the watchdog function */
+ 
+-      up_setpicbase(wdog->picbase);
++//    up_setpicbase(wdog->picbase);
+       CALL_FUNC(func, wdog->arg);
+     }
+ }
+@@ -196,7 +196,7 @@ int wd_start(FAR struct wdog_s *wdog, sclock_t delay,
+   /* Save the data in the watchdog structure */
+ 
+   wdog->func = wdentry;         /* Function to execute when delay expires */
+-  up_getpicbase(&wdog->picbase);
++//up_getpicbase(&wdog->picbase);
+   wdog->arg = arg;
+ 
+   /* Calculate delay+1, forcing the delay into a range that we can handle.

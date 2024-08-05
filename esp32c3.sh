@@ -29,3 +29,7 @@ cat ../esp32c3.conf >> .config
 git apply ../esp32c3.diff
 make olddefconfig
 make
+cd ..
+
+mkdir out
+cp nuttx/nuttx.bin out/nuttx-esp32c3.bin

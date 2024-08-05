@@ -15,3 +15,25 @@ jobs:
         uses: docker://docker.io/espressif/idf:v5.3
         with:
           args: /bin/sh -c "git config --global --add safe.directory '*' && ./esp32c3.sh"
+      - uses: actions/upload-artifact@v3
+        with:
+          name: nuttx-builds
+          path: out/
+
+  Release-Artifacts:
+    runs-on: ubuntu-20.04
+    needs: [Nuttx]
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: buildartifacts/
+      - name: Update release
+        if: "github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')"
+        uses: pyTooling/Actions/releaser@r0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            buildartifacts/nuttx-builds/*
+          tag: latest
+          rm: true

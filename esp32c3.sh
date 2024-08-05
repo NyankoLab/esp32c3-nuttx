@@ -3,7 +3,7 @@
 git submodule update --init tools
 
 cd tools/kconfig-frontends
-touch aclocal.m4 configure Makefile.am
+touch aclocal.m4 Makefile.am configure Makefile.in
 ./configure --enable-mconf
 make
 make install

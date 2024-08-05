@@ -25,4 +25,5 @@ cd nuttx
 ./tools/configure.sh esp32c3-generic:wifi
 cat ../esp32c3.conf >> .config
 git apply ../esp32c3.diff
+make olddefconfig
 make

@@ -10,6 +10,8 @@ make install
 ldconfig
 cd ../..
 
+pip install imgtool
+
 git submodule update --init apps
 git submodule update --init nuttx
 

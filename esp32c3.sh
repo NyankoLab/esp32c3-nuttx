@@ -3,11 +3,11 @@
 git submodule update --init tools
 
 cd tools/kconfig-frontends
-touch aclocal.m4 configure
+touch aclocal.m4 configure Makefile.am
 ./configure --enable-mconf
 make
-sudo make install
-sudo ldconfig
+make install
+ldconfig
 cd ../..
 
 git submodule update --init apps

@@ -1,11 +1,13 @@
-name: 'build'on:
+name: 'build'
+
+on:
   pull_request:
   push:
     branches:
       - main
 
 jobs:
-  MCUboot:
+  Nuttx:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
@@ -15,4 +17,4 @@ jobs:
       - name: Build MCUboot bootloader
         uses: docker://docker.io/espressif/idf:v5.3
         with:
-          args: /bin/sh -c "git config --global --add safe.directory '*' && cd tools/kconfig-frontends && ./configure --enable-mconf && make && make install && cd ../.. && cd nuttx && ./tools/configure.sh esp32c3-generic:wifi && cat ../esp32c3.conf | tee -a .config && git apply ../esp32c3.diff && make"
+          args: /bin/sh -c "git config --global --add safe.directory '*' && cd tools/kconfig-frontends && ./configure --enable-mconf && make && make install && cd ../.. && cd nuttx && ./tools/configure.sh ${{matrix.targets}}-generic:wifi && cat ../esp32c3.conf | tee -a .config && git apply ../esp32c3.diff && make"

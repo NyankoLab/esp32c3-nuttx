@@ -3,9 +3,11 @@
 git submodule update --init tools
 
 cd tools/kconfig-frontends
+autoreconf -f -i
 ./configure --enable-mconf
 make
-make install
+sudo make install
+sudo ldconfig
 cd ../..
 
 git submodule update --init apps

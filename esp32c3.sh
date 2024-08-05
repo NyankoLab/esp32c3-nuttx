@@ -3,7 +3,7 @@
 git submodule update --init tools
 
 cd tools/kconfig-frontends
-autoreconf -f -i
+touch aclocal.m4 configure
 ./configure --enable-mconf
 make
 sudo make install

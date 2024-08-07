@@ -1,5 +1,38 @@
+diff --git a/arch/risc-v/Kconfig b/arch/risc-v/Kconfig
+index 5a78e4c65a..01094bb145 100644
+--- a/arch/risc-v/Kconfig
++++ b/arch/risc-v/Kconfig
+@@ -99,9 +99,11 @@ config ARCH_CHIP_ESP32C3_GENERIC
+ 	select ARCH_RV_ISA_C
+ 	select ARCH_VECNOTIRQ
+ 	select ARCH_HAVE_BOOTLOADER if !ESPRESSIF_SIMPLE_BOOT
++	select ARCH_HAVE_ELF_EXECUTABLE
+ 	select ARCH_HAVE_MPU
+ 	select ARCH_HAVE_RESET
+ 	select ARCH_HAVE_RNG
++	select ARCH_HAVE_TEXT_HEAP
+ 	select ARCH_HAVE_TICKLESS
+ 	select LIBC_ARCH_ATOMIC
+ 	select LIBC_ARCH_MEMCPY
+diff --git a/arch/risc-v/src/cmake/Toolchain.cmake b/arch/risc-v/src/cmake/Toolchain.cmake
+index fb0e9d1db5..9cf90a0cda 100644
+--- a/arch/risc-v/src/cmake/Toolchain.cmake
++++ b/arch/risc-v/src/cmake/Toolchain.cmake
+@@ -116,11 +116,7 @@ set(CMAKE_ASM_ARCHIVE_CREATE "<CMAKE_AR> rcs <TARGET> <LINK_FLAGS> <OBJECTS>")
+ if(CONFIG_DEBUG_CUSTOMOPT)
+   add_compile_options(${CONFIG_DEBUG_OPTLEVEL})
+ elseif(CONFIG_DEBUG_FULLOPT)
+-  if(CONFIG_ARCH_TOOLCHAIN_CLANG)
+-    add_compile_options(-Oz)
+-  else()
+-    add_compile_options(-Os)
+-  endif()
++  add_compile_options(-Oz)
+ endif()
+ 
+ if(NOT CONFIG_DEBUG_NOOPT)
 diff --git a/arch/risc-v/src/common/espressif/Wireless.mk b/arch/risc-v/src/common/espressif/Wireless.mk
-index e2e627ca9f..7ac5c92aef 100644
+index e2e627ca9f..3530ce4d1a 100644
 --- a/arch/risc-v/src/common/espressif/Wireless.mk
 +++ b/arch/risc-v/src/common/espressif/Wireless.mk
 @@ -28,7 +28,7 @@ EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$
@@ -37,25 +70,64 @@ index 9d0f1c81d7..6305a4a565 100644
 +{
 +    return 0;
 +}
-diff --git a/sched/wdog/wd_start.c b/sched/wdog/wd_start.c
-index 3a0fd5a831..4a4cb7c01b 100644
---- a/sched/wdog/wd_start.c
-+++ b/sched/wdog/wd_start.c
-@@ -120,7 +120,7 @@ static inline void wd_expiration(void)
+diff --git a/arch/risc-v/src/esp32c3/Make.defs b/arch/risc-v/src/esp32c3/Make.defs
+index 97e5963f4b..e5b1a6e2c1 100644
+--- a/arch/risc-v/src/esp32c3/Make.defs
++++ b/arch/risc-v/src/esp32c3/Make.defs
+@@ -28,4 +28,8 @@ CHIP_CSRCS += esp_coex_adapter.c esp_wifi_adapter.c
+ EXTRA_LIBS += -lcore -lnet80211 -lpp
+ endif
  
-       /* Execute the watchdog function */
++ifeq ($(CONFIG_ARCH_USE_TEXT_HEAP),y)
++CHIP_CSRCS += esp32c3_textheap.c
++endif
++
+ CFLAGS += ${DEFINE_PREFIX}_RETARGETABLE_LOCKING
+diff --git a/binfmt/binfmt_exec.c b/binfmt/binfmt_exec.c
+index 448cc5005e..a0725d7551 100644
+--- a/binfmt/binfmt_exec.c
++++ b/binfmt/binfmt_exec.c
+@@ -31,6 +31,7 @@
+ #include <nuttx/kmalloc.h>
+ #include <nuttx/sched.h>
+ #include <nuttx/binfmt/binfmt.h>
++#include <nuttx/binfmt/symtab.h>
  
--      up_setpicbase(wdog->picbase);
-+//    up_setpicbase(wdog->picbase);
-       CALL_FUNC(func, wdog->arg);
-     }
- }
-@@ -196,7 +196,7 @@ int wd_start(FAR struct wdog_s *wdog, sclock_t delay,
-   /* Save the data in the watchdog structure */
+ #include "binfmt.h"
  
-   wdog->func = wdentry;         /* Function to execute when delay expires */
--  up_getpicbase(&wdog->picbase);
-+//up_getpicbase(&wdog->picbase);
-   wdog->arg = arg;
+@@ -291,6 +292,9 @@ int exec(FAR const char *filename, FAR char * const *argv,
+ {
+   int ret;
  
-   /* Calculate delay+1, forcing the delay into a range that we can handle.
++  if (nexports == 0)
++    exec_getsymtab(&exports, &nexports);
++
+   ret = exec_internal(filename, argv, envp,
+                       exports, nexports, NULL, NULL, false);
+   if (ret < 0)
+diff --git a/libs/libc/libc.csv b/libs/libc/libc.csv
+index 3623e7ff62..04f50a06e6 100644
+--- a/libs/libc/libc.csv
++++ b/libs/libc/libc.csv
+@@ -212,6 +212,7 @@
+ "pthread_condattr_init","pthread.h","!defined(CONFIG_DISABLE_PTHREAD)","int","FAR pthread_condattr_t *"
+ "pthread_condattr_setclock","pthread.h","!defined(CONFIG_DISABLE_PTHREAD)","int","FAR pthread_condattr_t *","clockid_t"
+ "pthread_create","pthread.h","!defined(CONFIG_DISABLE_PTHREAD)","int","FAR pthread_t *","FAR const pthread_attr_t *","pthread_startroutine_t","pthread_addr_t"
++"pthread_exit","pthread.h","!defined(CONFIG_DISABLE_PTHREAD)","noreturn","pthread_addr_t"
+ "pthread_getname_np","pthread.h","!defined(CONFIG_DISABLE_PTHREAD)","int","pthread_t","char *","size_t"
+ "pthread_getspecific","pthread.h","!defined(CONFIG_DISABLE_PTHREAD) && CONFIG_TLS_NELEM > 0","FAR void *","pthread_key_t"
+ "pthread_key_create","pthread.h","!defined(CONFIG_DISABLE_PTHREAD) && CONFIG_TLS_NELEM > 0","int","FAR pthread_key_t *","FAR void (*) (void *)|FAR void *"
+@@ -248,8 +249,13 @@
+ "scandir","dirent.h","","int","FAR const char *","FAR struct dirent ***","FAR int (*)(const struct dirent *)|FAR void *","FAR void *"
+ "sched_get_priority_max","sched.h","","int","int"
+ "sched_get_priority_min","sched.h","","int","int"
++"sem_destroy","semaphore.h","","int","FAR sem_t *"
+ "sem_getvalue","semaphore.h","","int","FAR sem_t *","FAR int *"
+ "sem_init","semaphore.h","","int","FAR sem_t *","int","unsigned int"
++"sem_post","semaphore.h","","int","FAR sem_t *"
++"sem_timedwait","semaphore.h","","int","FAR sem_t *","FAR const struct timespec *"
++"sem_trywait","semaphore.h","","int","FAR sem_t *"
++"sem_wait","semaphore.h","","int","FAR sem_t *"
+ "setlocale","locale.h","defined(CONFIG_LIBC_LOCALE)","FAR char *","int","FAR const char *"
+ "setlogmask","syslog.h","","int","int"
+ "setpriority","sys/resource.h","","int","int","id_t","int"

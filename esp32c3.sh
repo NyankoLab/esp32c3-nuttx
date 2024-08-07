@@ -27,6 +27,8 @@ cd nuttx
 ./tools/configure.sh esp32c3-generic:wifi
 cat ../esp32c3.conf >> .config
 git apply ../esp32c3.diff
+cp ../esp32c3_attr.h arch/risc-v/src/esp32c3
+cp ../esp32c3_textheap.c arch/risc-v/src/esp32c3
 make olddefconfig
 make
 cd ..

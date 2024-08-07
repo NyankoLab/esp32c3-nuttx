@@ -11,7 +11,7 @@ ldconfig
 cd ../..
 
 apt update
-apt install genromfs
+apt install genromfs xxd
 pip install imgtool
 
 git submodule update --init apps

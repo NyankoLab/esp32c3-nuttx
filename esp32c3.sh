@@ -10,6 +10,7 @@ make install
 ldconfig
 cd ../..
 
+apt install genromfs
 pip install imgtool
 
 git submodule update --init apps

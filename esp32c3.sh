@@ -10,6 +10,7 @@ make install
 ldconfig
 cd ../..
 
+apt update
 apt install genromfs
 pip install imgtool
 

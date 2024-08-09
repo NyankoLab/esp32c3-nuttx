@@ -31,6 +31,8 @@ cat ../esp32c3.conf >> .config
 git apply ../esp32c3.diff
 cp ../esp32c3_attr.h arch/risc-v/src/esp32c3
 cp ../esp32c3_textheap.c arch/risc-v/src/esp32c3
+mkdir -p boards/risc-v/esp32c3/esp32c3-generic/src/etc/init.d
+cp ../rcS boards/risc-v/esp32c3/esp32c3-generic/src/etc/init.d
 make olddefconfig
 make
 cd ..

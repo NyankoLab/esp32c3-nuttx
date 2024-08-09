@@ -83,28 +83,21 @@ index 97e5963f4b..e5b1a6e2c1 100644
 +endif
 +
  CFLAGS += ${DEFINE_PREFIX}_RETARGETABLE_LOCKING
-diff --git a/binfmt/binfmt_exec.c b/binfmt/binfmt_exec.c
-index 448cc5005e..a0725d7551 100644
---- a/binfmt/binfmt_exec.c
-+++ b/binfmt/binfmt_exec.c
-@@ -31,6 +31,7 @@
- #include <nuttx/kmalloc.h>
- #include <nuttx/sched.h>
- #include <nuttx/binfmt/binfmt.h>
-+#include <nuttx/binfmt/symtab.h>
+diff --git a/boards/risc-v/esp32c3/esp32c3-generic/src/Make.defs b/boards/risc-v/esp32c3/esp32c3-generic/src/Make.defs
+index b23cab8ea0..500ed940a5 100644
+--- a/boards/risc-v/esp32c3/esp32c3-generic/src/Make.defs
++++ b/boards/risc-v/esp32c3/esp32c3-generic/src/Make.defs
+@@ -38,6 +38,10 @@ ifeq ($(CONFIG_ARCH_BUTTONS),y)
+   CSRCS += esp32c3_buttons.c
+ endif
  
- #include "binfmt.h"
- 
-@@ -291,6 +292,9 @@ int exec(FAR const char *filename, FAR char * const *argv,
- {
-   int ret;
- 
-+  if (nexports == 0)
-+    exec_getsymtab(&exports, &nexports);
++ifeq ($(CONFIG_ETC_ROMFS),y)
++  RCRAWS = etc/init.d/rcS
++endif
 +
-   ret = exec_internal(filename, argv, envp,
-                       exports, nexports, NULL, NULL, false);
-   if (ret < 0)
+ DEPPATH += --dep-path board
+ VPATH += :board
+ CFLAGS += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src$(DELIM)board$(DELIM)board
 diff --git a/libs/libc/libc.csv b/libs/libc/libc.csv
 index 3623e7ff62..04f50a06e6 100644
 --- a/libs/libc/libc.csv

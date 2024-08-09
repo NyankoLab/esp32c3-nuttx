@@ -1,0 +1,2 @@
+mount -t littlefs /dev/espflash /usr
+sh /usr/init.d/rcS

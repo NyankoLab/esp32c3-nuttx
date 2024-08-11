@@ -34,6 +34,7 @@ cp ../esp32c3_textheap.c arch/risc-v/src/esp32c3
 mkdir -p boards/risc-v/esp32c3/esp32c3-generic/src/etc/init.d
 cp ../rcS boards/risc-v/esp32c3/esp32c3-generic/src/etc/init.d
 make olddefconfig
+echo MQTTC_PAL_FILE=mqtt_pal.h >> .config
 make
 cd ..
 

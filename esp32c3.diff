@@ -83,6 +83,19 @@ index 97e5963f4b..e5b1a6e2c1 100644
 +endif
 +
  CFLAGS += ${DEFINE_PREFIX}_RETARGETABLE_LOCKING
+diff --git a/binfmt/libelf/libelf_symbols.c b/binfmt/libelf/libelf_symbols.c
+index bbc232cc76..1d9c1fe3a9 100644
+--- a/binfmt/libelf/libelf_symbols.c
++++ b/binfmt/libelf/libelf_symbols.c
+@@ -304,6 +304,8 @@ int elf_symvalue(FAR struct elf_loadinfo_s *loadinfo, FAR Elf_Sym *sym,
+           {
+             berr("SHN_UNDEF: Exported symbol \"%s\" not found\n",
+                  loadinfo->iobuffer);
++            printf("SHN_UNDEF: Exported symbol \"%s\" not found\n",
++                 loadinfo->iobuffer);
+             return -ENOENT;
+           }
+ 
 diff --git a/boards/risc-v/esp32c3/esp32c3-generic/src/Make.defs b/boards/risc-v/esp32c3/esp32c3-generic/src/Make.defs
 index b23cab8ea0..500ed940a5 100644
 --- a/boards/risc-v/esp32c3/esp32c3-generic/src/Make.defs
@@ -124,3 +137,43 @@ index 3623e7ff62..04f50a06e6 100644
  "setlocale","locale.h","defined(CONFIG_LIBC_LOCALE)","FAR char *","int","FAR const char *"
  "setlogmask","syslog.h","","int","int"
  "setpriority","sys/resource.h","","int","int","id_t","int"
+diff --git a/libs/libc/machine/risc-v/arch_elf.c b/libs/libc/machine/risc-v/arch_elf.c
+index 8e826bddc5..286117ba68 100644
+--- a/libs/libc/machine/risc-v/arch_elf.c
++++ b/libs/libc/machine/risc-v/arch_elf.c
+@@ -78,6 +78,7 @@ static struct rname_code_s _rname_table[] =
+   {"CALL_PLT", R_RISCV_CALL_PLT},
+   {"BRANCH", R_RISCV_BRANCH},
+   {"JAL", R_RISCV_JAL},
++  {"ALIGN", R_RISCV_ALIGN},
+   {"RVC_JUMP", R_RISCV_RVC_JUMP},
+   {"RVC_BRANCH", R_RISCV_RVC_BRANCH},
+   {"32_PCREL", R_RISCV_32_PCREL},
+@@ -394,7 +395,7 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
+ 
+   relotype = ELF_R_TYPE(rel->r_info);
+ 
+-  if (relotype == R_RISCV_RELAX)
++  if (relotype == R_RISCV_RELAX || relotype == R_RISCV_ALIGN)
+     {
+       /* NOTE: RELAX has no symbol, so just return */
+ 
+diff --git a/syscall/syscall.csv b/syscall/syscall.csv
+index 6b23fcd604..632bc9d30d 100644
+--- a/syscall/syscall.csv
++++ b/syscall/syscall.csv
+@@ -203,3 +203,14 @@
+ "waitid","sys/wait.h","defined(CONFIG_SCHED_WAITPID) && defined(CONFIG_SCHED_HAVE_PARENT)","int","idtype_t","id_t"," FAR siginfo_t *","int"
+ "waitpid","sys/wait.h","defined(CONFIG_SCHED_WAITPID)","pid_t","pid_t","FAR int *","int"
+ "write","unistd.h","","ssize_t","int","FAR const void *","size_t"
++"webclient_set_defaults","../../apps/include/netutils/webclient.h","","void","FAR struct webclient_context *"
++"webclient_perform","../../apps/include/netutils/webclient.h","","int","FAR struct webclient_context *"
++"webclient_abort","../../apps/include/netutils/webclient.h","","void","FAR struct webclient_context *"
++"mqtt_init","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *, mqtt_pal_socket_handle, uint8_t *, size_t, uint8_t *, size_t, void (*)(void **, struct mqtt_response_publish *)"
++"mqtt_init_reconnect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","void","struct mqtt_client *, void (*)(struct mqtt_client *, void **), void *, void (*)(void **, struct mqtt_response_publish *)"
++"mqtt_connect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *, const char *, const char *, const void *, size_t, const char*, const char*, uint8_t, uint16_t"
++"mqtt_publish","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *, const char *, const void *, size_t, uint8_t"
++"mqtt_subscribe","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *, const char *, int"
++"mqtt_unsubscribe","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *, const char *"
++"mqtt_disconnect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *"
++"mqtt_reconnect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *"

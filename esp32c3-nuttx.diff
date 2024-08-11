@@ -97,10 +97,10 @@ index bbc232cc76..1d9c1fe3a9 100644
            }
  
 diff --git a/boards/risc-v/esp32c3/common/src/esp_board_spiflash.c b/boards/risc-v/esp32c3/common/src/esp_board_spiflash.c
-index 7e1c40ccb7..20f6ecf3ac 100644
+index 7e1c40ccb7..7ee8150239 100644
 --- a/boards/risc-v/esp32c3/common/src/esp_board_spiflash.c
 +++ b/boards/risc-v/esp32c3/common/src/esp_board_spiflash.c
-@@ -58,18 +58,109 @@
+@@ -58,18 +58,105 @@
   * Private Types
   ****************************************************************************/
  
@@ -180,11 +180,7 @@ index 7e1c40ccb7..20f6ecf3ac 100644
 +      const struct ota_partition_s *part = &g_ota_partition_table[i];
 +      mtd = esp_spiflash_alloc_mtdpart(part->offset, part->size);
 +
-+#ifdef CONFIG_BCH
 +      ret = ftl_initialize(i, mtd);
-+#else
-+      ret = ftl_initialize_by_path(part->devpath, mtd);
-+#endif
 +      if (ret < 0)
 +        {
 +          ferr("ERROR: Failed to initialize the FTL layer: %d\n", ret);
@@ -210,7 +206,7 @@ index 7e1c40ccb7..20f6ecf3ac 100644
  /****************************************************************************
   * Name: setup_smartfs
   *
-@@ -406,6 +497,14 @@ int board_spiflash_init(void)
+@@ -406,6 +493,14 @@ int board_spiflash_init(void)
  
    esp_spiflash_init();
  

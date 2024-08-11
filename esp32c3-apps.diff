@@ -1,0 +1,20 @@
+diff --git a/netutils/mqttc/0001_add_connection_status.patch b/netutils/mqttc/0001_add_connection_status.patch
+index 01c49c0f7..8c1f259a4 100644
+--- a/netutils/mqttc/0001_add_connection_status.patch
++++ b/netutils/mqttc/0001_add_connection_status.patch
+@@ -1,6 +1,15 @@
+ diff -Naur MQTT-C_orig/include/mqtt.h MQTT-C/include/mqtt.h
+ --- MQTT-C_orig/include/mqtt.h	2021-03-29 14:53:52.000000000 -0300
+ +++ MQTT-C/include/mqtt.h	2023-05-13 09:52:45.704346335 -0300
++@@ -40,7 +40,7 @@
++ #define MQTTC_STR(x) MQTTC_STR2(x)
++ #include MQTTC_STR(MQTTC_PAL_FILE)
++ #else
++-#include <mqtt_pal.h>
+++#include "mqtt_pal.h"
++ #endif /* MQTT_PAL_FILE */
++
++ /**
+ @@ -1233,6 +1233,9 @@
+  
+      /** @brief The sending message queue. */

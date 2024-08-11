@@ -25,16 +25,19 @@ ln -s ${ESP_GCC_PATH}/riscv32-esp-elf-nm ${ESP_GCC_PATH}/riscv64-unknown-elf-nm
 ln -s ${ESP_GCC_PATH}/riscv32-esp-elf-objcopy ${ESP_GCC_PATH}/riscv64-unknown-elf-objcopy
 ln -s ${ESP_GCC_PATH}/riscv32-esp-elf-strip ${ESP_GCC_PATH}/riscv64-unknown-elf-strip
 
+cd apps
+git apply ../esp32c3-apps.diff
+cd ..
+
 cd nuttx
 ./tools/configure.sh esp32c3-generic:wifi
 cat ../esp32c3.conf >> .config
-git apply ../esp32c3.diff
+git apply ../esp32c3-nuttx.diff
 cp ../esp32c3_attr.h arch/risc-v/src/esp32c3
 cp ../esp32c3_textheap.c arch/risc-v/src/esp32c3
 mkdir -p boards/risc-v/esp32c3/esp32c3-generic/src/etc/init.d
 cp ../rcS boards/risc-v/esp32c3/esp32c3-generic/src/etc/init.d
 make olddefconfig
-echo MQTTC_PAL_FILE=mqtt_pal.h >> .config
 make
 cd ..
 

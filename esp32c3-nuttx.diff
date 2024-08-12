@@ -32,7 +32,7 @@ index fb0e9d1db5..9cf90a0cda 100644
  
  if(NOT CONFIG_DEBUG_NOOPT)
 diff --git a/arch/risc-v/src/common/espressif/Wireless.mk b/arch/risc-v/src/common/espressif/Wireless.mk
-index e2e627ca9f..27f279e850 100644
+index e2e627ca9f..2555442f05 100644
 --- a/arch/risc-v/src/common/espressif/Wireless.mk
 +++ b/arch/risc-v/src/common/espressif/Wireless.mk
 @@ -28,7 +28,7 @@ EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$
@@ -44,7 +44,7 @@ index e2e627ca9f..27f279e850 100644
  
  ifeq ($(CONFIG_ESPRESSIF_WIFI),y)
  
-@@ -45,6 +45,17 @@ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY
+@@ -45,6 +45,18 @@ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY
  INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)mbedtls$(DELIM)port$(DELIM)include
  INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)nuttx$(DELIM)include$(DELIM)mbedtls
  
@@ -58,6 +58,7 @@ index e2e627ca9f..27f279e850 100644
 +CHIP_CSRCS += ssl_tls12_server.c
 +CHIP_CSRCS += x509.c
 +CHIP_CSRCS += x509_crt.c
++CHIP_CSRCS += mbedtls_sslutils.c
 +
  ### Define Espressif's configs for mbedTLS
  
@@ -302,10 +303,10 @@ index 8e826bddc5..286117ba68 100644
        /* NOTE: RELAX has no symbol, so just return */
  
 diff --git a/syscall/syscall.csv b/syscall/syscall.csv
-index 6b23fcd604..87d09f03f3 100644
+index 6b23fcd604..2cf827df61 100644
 --- a/syscall/syscall.csv
 +++ b/syscall/syscall.csv
-@@ -203,3 +203,52 @@
+@@ -203,3 +203,15 @@
  "waitid","sys/wait.h","defined(CONFIG_SCHED_WAITPID) && defined(CONFIG_SCHED_HAVE_PARENT)","int","idtype_t","id_t"," FAR siginfo_t *","int"
  "waitpid","sys/wait.h","defined(CONFIG_SCHED_WAITPID)","pid_t","pid_t","FAR int *","int"
  "write","unistd.h","","ssize_t","int","FAR const void *","size_t"
@@ -320,41 +321,4 @@ index 6b23fcd604..87d09f03f3 100644
 +"mqtt_unsubscribe","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *, const char *"
 +"mqtt_disconnect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *"
 +"mqtt_reconnect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *"
-+"esp_mbedtls_ctr_drbg_free","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ctr_drbg_init","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ctr_drbg_random","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ctr_drbg_seed","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_entropy_free","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_entropy_func","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_entropy_init","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_net_connect","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_net_free","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_net_init","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_net_recv","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_net_recv_timeout","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_net_send","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_pk_free","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_pk_init","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_pk_parse_keyfile","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_close_notify","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_conf_authmode","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_conf_ca_chain","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_conf_own_cert","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_conf_read_timeout","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_conf_rng","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_config_defaults","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_config_free","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_config_init","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_free","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_get_verify_result","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_handshake","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_init","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_read","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_set_bio","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_set_hostname","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_setup","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_ssl_write","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_x509_crt_free","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_x509_crt_init","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_x509_crt_parse_file","../esp_mbedtls.h","","void","void"
-+"esp_mbedtls_x509_crt_verify_info","../esp_mbedtls.h","","void","void"
++"sslutil_webclient_tlsops","../arch/risc-v/src/common/espressif/sslutil.h","","struct webclient_tls_ops *","void"

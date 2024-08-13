@@ -41,6 +41,7 @@ cp ../patch/esp32c3_textheap.c arch/risc-v/src/esp32c3
 mkdir -p boards/risc-v/esp32c3/esp32c3-generic/src/etc/init.d
 cp ../patch/rcS boards/risc-v/esp32c3/esp32c3-generic/src/etc/init.d
 make olddefconfig
+set -e
 make || true
 git apply --directory=arch/risc-v/src/esp32c3/esp-hal-3rdparty ../patch/esp32c3-mbedtls.diff
 make

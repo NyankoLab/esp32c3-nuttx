@@ -1,0 +1,1041 @@
+diff --git a/components/mbedtls/mbedtls b/components/mbedtls/mbedtls
+--- a/components/mbedtls/mbedtls
++++ b/components/mbedtls/mbedtls
+@@ -1 +1 @@
+-Subproject commit 65b3c0857c9f207dcb0b646f2b4ebd8e5edf83c1
++Subproject commit 65b3c0857c9f207dcb0b646f2b4ebd8e5edf83c1-dirty
+diff --git a/components/mbedtls/port/aes/block/esp_aes.c b/components/mbedtls/port/aes/block/esp_aes.c
+index fcf4e2a67b..3a7e3f91c6 100644
+--- a/components/mbedtls/port/aes/block/esp_aes.c
++++ b/components/mbedtls/port/aes/block/esp_aes.c
+@@ -35,7 +35,11 @@
+ #include "hal/aes_hal.h"
+ #include "aes/esp_aes_internal.h"
+ 
++#ifdef __NuttX__
++#include <pthread.h>
++#else
+ #include <freertos/FreeRTOS.h>
++#endif
+ 
+ #include <stdio.h>
+ #include "esp_private/periph_ctrl.h"
+@@ -50,23 +54,35 @@ static const char *TAG = "esp-aes";
+    period of time for bigger lengths. However at the moment this has to happen
+    anyway due to DPORT protection...
+ */
++#ifdef __NuttX__
++static pthread_mutex_t aes_spinlock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
++#else
+ static portMUX_TYPE aes_spinlock = portMUX_INITIALIZER_UNLOCKED;
++#endif
+ 
+ 
+-void esp_aes_acquire_hardware( void )
++void esp_mbedtls_aes_acquire_hardware( void )
+ {
++#ifdef __NuttX__
++    pthread_mutex_lock(&aes_spinlock);
++#else
+     portENTER_CRITICAL(&aes_spinlock);
++#endif
+ 
+     /* Enable AES hardware */
+     periph_module_enable(PERIPH_AES_MODULE);
+ }
+ 
+-void esp_aes_release_hardware( void )
++void esp_mbedtls_aes_release_hardware( void )
+ {
+     /* Disable AES hardware */
+     periph_module_disable(PERIPH_AES_MODULE);
+ 
++#ifdef __NuttX__
++    pthread_mutex_unlock(&aes_spinlock);
++#else
+     portEXIT_CRITICAL(&aes_spinlock);
++#endif
+ }
+ 
+ 
+@@ -79,7 +95,7 @@ void esp_aes_release_hardware( void )
+  * 1. If key is not written in the hardware
+  * 2. If the fault injection check failed
+  */
+-static int esp_aes_block(esp_aes_context *ctx, const void *input, void *output)
++static int esp_mbedtls_aes_block(esp_aes_context *ctx, const void *input, void *output)
+ {
+     uint32_t i0, i1, i2, i3;
+     const uint32_t *input_words = (uint32_t *)input;
+@@ -91,7 +107,7 @@ static int esp_aes_block(esp_aes_context *ctx, const void *input, void *output)
+        key write to hardware. Treat this as a fatal error and zero the output block.
+     */
+     if (ctx->key_in_hardware != ctx->key_bytes) {
+-        mbedtls_platform_zeroize(output, 16);
++        esp_mbedtls_platform_zeroize(output, 16);
+         return MBEDTLS_ERR_AES_INVALID_INPUT_LENGTH;
+     }
+     i0 = input_words[0];
+@@ -112,14 +128,14 @@ static int esp_aes_block(esp_aes_context *ctx, const void *input, void *output)
+         // calling zeroing functions to narrow the
+         // window for a double-fault of the abort step, here
+         memset(output, 0, 16);
+-        mbedtls_platform_zeroize(output, 16);
++        esp_mbedtls_platform_zeroize(output, 16);
+         abort();
+     }
+ 
+     return 0;
+ }
+ 
+-static int esp_aes_validate_input(esp_aes_context *ctx, const unsigned char *input,
++static int esp_mbedtls_aes_validate_input(esp_aes_context *ctx, const unsigned char *input,
+                                   const unsigned char *output )
+ {
+     if (!ctx) {
+@@ -139,7 +155,7 @@ static int esp_aes_validate_input(esp_aes_context *ctx, const unsigned char *inp
+ }
+ 
+ 
+-void esp_aes_encrypt(esp_aes_context *ctx,
++void esp_mbedtls_aes_encrypt(esp_aes_context *ctx,
+                      const unsigned char input[16],
+                      unsigned char output[16] )
+ {
+@@ -155,7 +171,7 @@ int esp_internal_aes_encrypt(esp_aes_context *ctx,
+ {
+     int r = -1;
+ 
+-    if (esp_aes_validate_input(ctx, input, output)) {
++    if (esp_mbedtls_aes_validate_input(ctx, input, output)) {
+         return MBEDTLS_ERR_AES_BAD_INPUT_DATA;
+     }
+ 
+@@ -163,15 +179,15 @@ int esp_internal_aes_encrypt(esp_aes_context *ctx,
+         return MBEDTLS_ERR_AES_INVALID_KEY_LENGTH;
+     }
+ 
+-    esp_aes_acquire_hardware();
++    esp_mbedtls_aes_acquire_hardware();
+     ctx->key_in_hardware = 0;
+     ctx->key_in_hardware = aes_hal_setkey(ctx->key, ctx->key_bytes, ESP_AES_ENCRYPT);
+-    r = esp_aes_block(ctx, input, output);
+-    esp_aes_release_hardware();
++    r = esp_mbedtls_aes_block(ctx, input, output);
++    esp_mbedtls_aes_release_hardware();
+     return r;
+ }
+ 
+-void esp_aes_decrypt(esp_aes_context *ctx,
++void esp_mbedtls_aes_decrypt(esp_aes_context *ctx,
+                      const unsigned char input[16],
+                      unsigned char output[16] )
+ {
+@@ -188,7 +204,7 @@ int esp_internal_aes_decrypt(esp_aes_context *ctx,
+ {
+     int r = -1;
+ 
+-    if (esp_aes_validate_input(ctx, input, output)) {
++    if (esp_mbedtls_aes_validate_input(ctx, input, output)) {
+         return MBEDTLS_ERR_AES_BAD_INPUT_DATA;
+     }
+ 
+@@ -196,25 +212,25 @@ int esp_internal_aes_decrypt(esp_aes_context *ctx,
+         return MBEDTLS_ERR_AES_INVALID_KEY_LENGTH;
+     }
+ 
+-    esp_aes_acquire_hardware();
++    esp_mbedtls_aes_acquire_hardware();
+     ctx->key_in_hardware = 0;
+     ctx->key_in_hardware = aes_hal_setkey(ctx->key, ctx->key_bytes, ESP_AES_DECRYPT);
+-    r = esp_aes_block(ctx, input, output);
+-    esp_aes_release_hardware();
++    r = esp_mbedtls_aes_block(ctx, input, output);
++    esp_mbedtls_aes_release_hardware();
+     return r;
+ }
+ 
+ /*
+  * AES-ECB block encryption/decryption
+  */
+-int esp_aes_crypt_ecb(esp_aes_context *ctx,
++int esp_mbedtls_aes_crypt_ecb(esp_aes_context *ctx,
+                       int mode,
+                       const unsigned char input[16],
+                       unsigned char output[16] )
+ {
+     int r = -1;
+ 
+-    if (esp_aes_validate_input(ctx, input, output)) {
++    if (esp_mbedtls_aes_validate_input(ctx, input, output)) {
+         return MBEDTLS_ERR_AES_BAD_INPUT_DATA;
+     }
+ 
+@@ -222,11 +238,11 @@ int esp_aes_crypt_ecb(esp_aes_context *ctx,
+         return MBEDTLS_ERR_AES_INVALID_KEY_LENGTH;
+     }
+ 
+-    esp_aes_acquire_hardware();
++    esp_mbedtls_aes_acquire_hardware();
+     ctx->key_in_hardware = 0;
+     ctx->key_in_hardware = aes_hal_setkey(ctx->key, ctx->key_bytes, mode);
+-    r = esp_aes_block(ctx, input, output);
+-    esp_aes_release_hardware();
++    r = esp_mbedtls_aes_block(ctx, input, output);
++    esp_mbedtls_aes_release_hardware();
+     return r;
+ }
+ 
+@@ -234,7 +250,7 @@ int esp_aes_crypt_ecb(esp_aes_context *ctx,
+ /*
+  * AES-CBC buffer encryption/decryption
+  */
+-int esp_aes_crypt_cbc(esp_aes_context *ctx,
++int esp_mbedtls_aes_crypt_cbc(esp_aes_context *ctx,
+                       int mode,
+                       size_t length,
+                       unsigned char iv[16],
+@@ -242,7 +258,7 @@ int esp_aes_crypt_cbc(esp_aes_context *ctx,
+                       unsigned char *output )
+ {
+     int ret = -1;
+-    if (esp_aes_validate_input(ctx, input, output)) {
++    if (esp_mbedtls_aes_validate_input(ctx, input, output)) {
+         return MBEDTLS_ERR_AES_BAD_INPUT_DATA;
+     }
+ 
+@@ -264,7 +280,7 @@ int esp_aes_crypt_cbc(esp_aes_context *ctx,
+         return MBEDTLS_ERR_AES_INVALID_KEY_LENGTH;
+     }
+ 
+-    esp_aes_acquire_hardware();
++    esp_mbedtls_aes_acquire_hardware();
+     ctx->key_in_hardware = 0;
+     ctx->key_in_hardware = aes_hal_setkey(ctx->key, ctx->key_bytes, mode);
+ 
+@@ -272,7 +288,7 @@ int esp_aes_crypt_cbc(esp_aes_context *ctx,
+     if ( mode == ESP_AES_DECRYPT ) {
+         while ( length > 0 ) {
+             memcpy(temp, input_words, 16);
+-            ret = esp_aes_block(ctx, input_words, output_words);
++            ret = esp_mbedtls_aes_block(ctx, input_words, output_words);
+             if (ret != 0) {
+                 goto cleanup;
+             }
+@@ -296,7 +312,7 @@ int esp_aes_crypt_cbc(esp_aes_context *ctx,
+             output_words[2] = input_words[2] ^ iv_words[2];
+             output_words[3] = input_words[3] ^ iv_words[3];
+ 
+-            ret = esp_aes_block(ctx, output_words, output_words);
++            ret = esp_mbedtls_aes_block(ctx, output_words, output_words);
+             if (ret != 0) {
+                 goto cleanup;
+             }
+@@ -311,14 +327,14 @@ int esp_aes_crypt_cbc(esp_aes_context *ctx,
+     ret = 0;
+ 
+ cleanup:
+-    esp_aes_release_hardware();
++    esp_mbedtls_aes_release_hardware();
+     return ret;
+ }
+ 
+ /*
+  * AES-CFB128 buffer encryption/decryption
+  */
+-int esp_aes_crypt_cfb128(esp_aes_context *ctx,
++int esp_mbedtls_aes_crypt_cfb128(esp_aes_context *ctx,
+                          int mode,
+                          size_t length,
+                          size_t *iv_off,
+@@ -327,7 +343,7 @@ int esp_aes_crypt_cfb128(esp_aes_context *ctx,
+                          unsigned char *output )
+ {
+     int ret = -1;
+-    if (esp_aes_validate_input(ctx, input, output)) {
++    if (esp_mbedtls_aes_validate_input(ctx, input, output)) {
+         return MBEDTLS_ERR_AES_BAD_INPUT_DATA;
+     }
+ 
+@@ -347,14 +363,14 @@ int esp_aes_crypt_cfb128(esp_aes_context *ctx,
+ 
+     int c;
+     size_t n = *iv_off;
+-    esp_aes_acquire_hardware();
++    esp_mbedtls_aes_acquire_hardware();
+     ctx->key_in_hardware = 0;
+     ctx->key_in_hardware = aes_hal_setkey(ctx->key, ctx->key_bytes, ESP_AES_ENCRYPT);
+ 
+     if ( mode == ESP_AES_DECRYPT ) {
+         while ( length-- ) {
+             if ( n == 0 ) {
+-                ret = esp_aes_block(ctx, iv, iv);
++                ret = esp_mbedtls_aes_block(ctx, iv, iv);
+                 if (ret != 0) {
+                     goto cleanup;
+                 }
+@@ -369,7 +385,7 @@ int esp_aes_crypt_cfb128(esp_aes_context *ctx,
+     } else {
+         while ( length-- ) {
+             if ( n == 0 ) {
+-                ret = esp_aes_block(ctx, iv, iv);
++                ret = esp_mbedtls_aes_block(ctx, iv, iv);
+                 if (ret != 0) {
+                     goto cleanup;
+                 }
+@@ -385,14 +401,14 @@ int esp_aes_crypt_cfb128(esp_aes_context *ctx,
+     ret = 0;
+ 
+ cleanup:
+-    esp_aes_release_hardware();
++    esp_mbedtls_aes_release_hardware();
+     return ret;
+ }
+ 
+ /*
+  * AES-CFB8 buffer encryption/decryption
+  */
+-int esp_aes_crypt_cfb8(esp_aes_context *ctx,
++int esp_mbedtls_aes_crypt_cfb8(esp_aes_context *ctx,
+                        int mode,
+                        size_t length,
+                        unsigned char iv[16],
+@@ -403,7 +419,7 @@ int esp_aes_crypt_cfb8(esp_aes_context *ctx,
+     unsigned char c;
+     unsigned char ov[17];
+ 
+-    if (esp_aes_validate_input(ctx, input, output)) {
++    if (esp_mbedtls_aes_validate_input(ctx, input, output)) {
+         return MBEDTLS_ERR_AES_BAD_INPUT_DATA;
+     }
+ 
+@@ -416,14 +432,14 @@ int esp_aes_crypt_cfb8(esp_aes_context *ctx,
+         return MBEDTLS_ERR_AES_INVALID_KEY_LENGTH;
+     }
+ 
+-    esp_aes_acquire_hardware();
++    esp_mbedtls_aes_acquire_hardware();
+     ctx->key_in_hardware = 0;
+     ctx->key_in_hardware = aes_hal_setkey(ctx->key, ctx->key_bytes, ESP_AES_ENCRYPT);
+ 
+ 
+     while ( length-- ) {
+         memcpy( ov, iv, 16 );
+-        ret = esp_aes_block(ctx, iv, iv);
++        ret = esp_mbedtls_aes_block(ctx, iv, iv);
+         if (ret != 0) {
+             goto cleanup;
+         }
+@@ -443,14 +459,14 @@ int esp_aes_crypt_cfb8(esp_aes_context *ctx,
+     ret = 0;
+ 
+ cleanup:
+-    esp_aes_release_hardware();
++    esp_mbedtls_aes_release_hardware();
+     return ret;
+ }
+ 
+ /*
+  * AES-CTR buffer encryption/decryption
+  */
+-int esp_aes_crypt_ctr(esp_aes_context *ctx,
++int esp_mbedtls_aes_crypt_ctr(esp_aes_context *ctx,
+                       size_t length,
+                       size_t *nc_off,
+                       unsigned char nonce_counter[16],
+@@ -460,7 +476,7 @@ int esp_aes_crypt_ctr(esp_aes_context *ctx,
+ {
+     int c, i, ret = -1;
+ 
+-    if (esp_aes_validate_input(ctx, input, output)) {
++    if (esp_mbedtls_aes_validate_input(ctx, input, output)) {
+         return MBEDTLS_ERR_AES_BAD_INPUT_DATA;
+     }
+ 
+@@ -484,14 +500,14 @@ int esp_aes_crypt_ctr(esp_aes_context *ctx,
+         return MBEDTLS_ERR_AES_INVALID_KEY_LENGTH;
+     }
+ 
+-    esp_aes_acquire_hardware();
++    esp_mbedtls_aes_acquire_hardware();
+     ctx->key_in_hardware = 0;
+     ctx->key_in_hardware = aes_hal_setkey(ctx->key, ctx->key_bytes, ESP_AES_ENCRYPT);
+ 
+ 
+     while ( length-- ) {
+         if ( n == 0 ) {
+-            ret = esp_aes_block(ctx, nonce_counter, stream_block);
++            ret = esp_mbedtls_aes_block(ctx, nonce_counter, stream_block);
+             if (ret != 0) {
+                 goto cleanup;
+             }
+@@ -512,14 +528,14 @@ int esp_aes_crypt_ctr(esp_aes_context *ctx,
+     ret = 0;
+ 
+ cleanup:
+-    esp_aes_release_hardware();
++    esp_mbedtls_aes_release_hardware();
+     return ret;
+ }
+ 
+ /*
+  * AES-OFB (Output Feedback Mode) buffer encryption/decryption
+  */
+-int esp_aes_crypt_ofb(esp_aes_context *ctx,
++int esp_mbedtls_aes_crypt_ofb(esp_aes_context *ctx,
+                       size_t length,
+                       size_t *iv_off,
+                       unsigned char iv[16],
+@@ -529,7 +545,7 @@ int esp_aes_crypt_ofb(esp_aes_context *ctx,
+     int ret = -1;
+     size_t n;
+ 
+-    if (esp_aes_validate_input(ctx, input, output)) {
++    if (esp_mbedtls_aes_validate_input(ctx, input, output)) {
+         return MBEDTLS_ERR_AES_BAD_INPUT_DATA;
+     }
+ 
+@@ -553,14 +569,14 @@ int esp_aes_crypt_ofb(esp_aes_context *ctx,
+         return MBEDTLS_ERR_AES_INVALID_KEY_LENGTH;
+     }
+ 
+-    esp_aes_acquire_hardware();
++    esp_mbedtls_aes_acquire_hardware();
+     ctx->key_in_hardware = 0;
+     ctx->key_in_hardware = aes_hal_setkey(ctx->key, ctx->key_bytes, ESP_AES_ENCRYPT);
+ 
+ 
+     while (length--) {
+         if ( n == 0 ) {
+-            ret = esp_aes_block(ctx, iv, iv);
++            ret = esp_mbedtls_aes_block(ctx, iv, iv);
+             if (ret != 0) {
+                 goto cleanup;
+             }
+@@ -574,7 +590,7 @@ int esp_aes_crypt_ofb(esp_aes_context *ctx,
+     ret = 0;
+ 
+ cleanup:
+-    esp_aes_release_hardware();
++    esp_mbedtls_aes_release_hardware();
+ 
+     return ( ret );
+ }
+diff --git a/components/mbedtls/port/aes/esp_aes_common.c b/components/mbedtls/port/aes/esp_aes_common.c
+index 5af90a8003..6b0332c971 100644
+--- a/components/mbedtls/port/aes/esp_aes_common.c
++++ b/components/mbedtls/port/aes/esp_aes_common.c
+@@ -40,12 +40,12 @@ bool valid_key_length(const esp_aes_context *ctx)
+ }
+ 
+ 
+-void esp_aes_init( esp_aes_context *ctx )
++void esp_mbedtls_aes_init( esp_aes_context *ctx )
+ {
+     bzero( ctx, sizeof( esp_aes_context ) );
+ }
+ 
+-void esp_aes_free( esp_aes_context *ctx )
++void esp_mbedtls_aes_free( esp_aes_context *ctx )
+ {
+     if ( ctx == NULL ) {
+         return;
+@@ -58,7 +58,7 @@ void esp_aes_free( esp_aes_context *ctx )
+  * AES key schedule (same for encryption or decryption, as hardware handles schedule)
+  *
+  */
+-int esp_aes_setkey( esp_aes_context *ctx, const unsigned char *key,
++int esp_mbedtls_aes_setkey_enc( esp_aes_context *ctx, const unsigned char *key,
+                     unsigned int keybits )
+ {
+ #if !SOC_AES_SUPPORT_AES_192
+@@ -74,3 +74,9 @@ int esp_aes_setkey( esp_aes_context *ctx, const unsigned char *key,
+     ctx->key_in_hardware = 0;
+     return 0;
+ }
++
++int esp_mbedtls_aes_setkey_dec( esp_aes_context *ctx, const unsigned char *key,
++                    unsigned int keybits )
++{
++    return esp_mbedtls_aes_setkey_enc(ctx, key, keybits);
++}
+diff --git a/components/mbedtls/port/aes/esp_aes_gcm.c b/components/mbedtls/port/aes/esp_aes_gcm.c
+index 80a3871146..d787f858db 100644
+--- a/components/mbedtls/port/aes/esp_aes_gcm.c
++++ b/components/mbedtls/port/aes/esp_aes_gcm.c
+@@ -25,8 +25,6 @@
+ #include "esp_log.h"
+ #include "mbedtls/aes.h"
+ #include "mbedtls/gcm.h"
+-#include "esp_heap_caps.h"
+-#include "soc/soc_memory_layout.h"
+ 
+ #include "mbedtls/error.h"
+ #include <string.h>
+@@ -241,7 +239,7 @@ static void gcm_mult( esp_gcm_context *ctx, const unsigned char x[16],
+ 
+ 
+ /* Update the key value in gcm context */
+-int esp_aes_gcm_setkey( esp_gcm_context *ctx,
++int esp_mbedtls_gcm_setkey( esp_gcm_context *ctx,
+                         mbedtls_cipher_id_t cipher,
+                         const unsigned char *key,
+                         unsigned int keybits )
+@@ -306,28 +304,28 @@ static void esp_gcm_ghash(esp_gcm_context *ctx, const unsigned char *x, size_t x
+ 
+ 
+ /* Function to init AES GCM context to zero */
+-void esp_aes_gcm_init( esp_gcm_context *ctx)
++void esp_mbedtls_gcm_init( esp_gcm_context *ctx)
+ {
+     if (ctx == NULL) {
+         return;
+     }
+ 
+-    bzero(ctx, sizeof(esp_gcm_context));
++    memset(ctx, 0, sizeof(esp_gcm_context));
+ 
+     ctx->gcm_state = ESP_AES_GCM_STATE_INIT;
+ }
+ 
+ /* Function to clear AES-GCM context */
+-void esp_aes_gcm_free( esp_gcm_context *ctx)
++void esp_mbedtls_gcm_free( esp_gcm_context *ctx)
+ {
+     if (ctx == NULL) {
+         return;
+     }
+-    bzero(ctx, sizeof(esp_gcm_context));
++    memset(ctx, 0, sizeof(esp_gcm_context));
+ }
+ 
+ /* Setup AES-GCM */
+-int esp_aes_gcm_starts( esp_gcm_context *ctx,
++int esp_mbedtls_gcm_starts( esp_gcm_context *ctx,
+                         int mode,
+                         const unsigned char *iv,
+                         size_t iv_len )
+@@ -363,16 +361,16 @@ int esp_aes_gcm_starts( esp_gcm_context *ctx,
+     if (ctx->gcm_state == ESP_AES_GCM_STATE_INIT) {
+         /* Lock the AES engine to calculate ghash key H in hardware */
+ #if SOC_AES_SUPPORT_GCM
+-        esp_aes_acquire_hardware();
++        esp_mbedtls_aes_acquire_hardware();
+         ctx->aes_ctx.key_in_hardware = aes_hal_setkey(ctx->aes_ctx.key, ctx->aes_ctx.key_bytes, mode);
+         aes_hal_mode_init(ESP_AES_BLOCK_MODE_GCM);
+ 
+         aes_hal_gcm_calc_hash(ctx->H);
+ 
+-        esp_aes_release_hardware();
++        esp_mbedtls_aes_release_hardware();
+ #else
+         memset(ctx->H, 0, sizeof(ctx->H));
+-        int ret = esp_aes_crypt_ecb(&ctx->aes_ctx, MBEDTLS_AES_ENCRYPT, ctx->H, ctx->H);
++        int ret = esp_mbedtls_aes_crypt_ecb(&ctx->aes_ctx, MBEDTLS_AES_ENCRYPT, ctx->H, ctx->H);
+         if (ret != 0) {
+             return ret;
+         }
+@@ -394,7 +392,7 @@ int esp_aes_gcm_starts( esp_gcm_context *ctx,
+     return ( 0 );
+ }
+ 
+-int esp_aes_gcm_update_ad( esp_gcm_context *ctx,
++int esp_mbedtls_gcm_update_ad( esp_gcm_context *ctx,
+                            const unsigned char *aad,
+                            size_t aad_len )
+ {
+@@ -428,7 +426,7 @@ int esp_aes_gcm_update_ad( esp_gcm_context *ctx,
+ }
+ 
+ /* Perform AES-GCM operation */
+-int esp_aes_gcm_update( esp_gcm_context *ctx,
++int esp_mbedtls_gcm_update( esp_gcm_context *ctx,
+                         const unsigned char *input, size_t input_length,
+                         unsigned char *output, size_t output_size,
+                         size_t *output_length )
+@@ -478,7 +476,7 @@ int esp_aes_gcm_update( esp_gcm_context *ctx,
+     }
+ 
+     /* Output = GCTR(J0, Input): Encrypt/Decrypt the input */
+-    int ret = esp_aes_crypt_ctr(&ctx->aes_ctx, input_length, &nc_off, nonce_counter, stream, input, output);
++    int ret = esp_mbedtls_aes_crypt_ctr(&ctx->aes_ctx, input_length, &nc_off, nonce_counter, stream, input, output);
+     if (ret != 0) {
+         return ret;
+     }
+@@ -498,7 +496,7 @@ int esp_aes_gcm_update( esp_gcm_context *ctx,
+ }
+ 
+ /* Function to read the tag value */
+-int esp_aes_gcm_finish( esp_gcm_context *ctx,
++int esp_mbedtls_gcm_finish( esp_gcm_context *ctx,
+                         unsigned char *output, size_t output_size,
+                         size_t *output_length,
+                         unsigned char *tag, size_t tag_len )
+@@ -517,13 +515,13 @@ int esp_aes_gcm_finish( esp_gcm_context *ctx,
+     esp_gcm_ghash(ctx, len_block, AES_BLOCK_BYTES, ctx->ghash);
+ 
+     /* Tag T = GCTR(J0, ) where T is truncated to tag_len */
+-    return esp_aes_crypt_ctr(&ctx->aes_ctx, tag_len, &nc_off, ctx->ori_j0, stream, ctx->ghash, tag);
++    return esp_mbedtls_aes_crypt_ctr(&ctx->aes_ctx, tag_len, &nc_off, ctx->ori_j0, stream, ctx->ghash, tag);
+ }
+ 
+ #if SOC_AES_SUPPORT_GCM
+ /* Due to restrictions in the hardware (e.g. need to do the whole conversion in one go),
+    some combinations of inputs are not supported */
+-static bool esp_aes_gcm_input_support_hw_accel(size_t length, const unsigned char *aad, size_t aad_len,
++static bool esp_mbedtls_gcm_input_support_hw_accel(size_t length, const unsigned char *aad, size_t aad_len,
+                                                const unsigned char *input, unsigned char *output, uint8_t *stream_in)
+ {
+     bool support_hw_accel = true;
+@@ -552,7 +550,7 @@ static bool esp_aes_gcm_input_support_hw_accel(size_t length, const unsigned cha
+ }
+ #endif
+ 
+-static int esp_aes_gcm_crypt_and_tag_partial_hw( esp_gcm_context *ctx,
++static int esp_mbedtls_gcm_crypt_and_tag_partial_hw( esp_gcm_context *ctx,
+         int mode,
+         size_t length,
+         const unsigned char *iv,
+@@ -567,26 +565,26 @@ static int esp_aes_gcm_crypt_and_tag_partial_hw( esp_gcm_context *ctx,
+     int ret = 0;
+     size_t olen;
+ 
+-    if ( ( ret = esp_aes_gcm_starts( ctx, mode, iv, iv_len ) ) != 0 ) {
++    if ( ( ret = esp_mbedtls_gcm_starts( ctx, mode, iv, iv_len ) ) != 0 ) {
+         return ( ret );
+     }
+ 
+-    if ( ( ret =  esp_aes_gcm_update_ad( ctx, aad, aad_len ) ) != 0 ) {
++    if ( ( ret =  esp_mbedtls_gcm_update_ad( ctx, aad, aad_len ) ) != 0 ) {
+         return ( ret );
+     }
+ 
+-    if ( ( ret = esp_aes_gcm_update( ctx, input, length, output, 0, &olen ) ) != 0 ) {
++    if ( ( ret = esp_mbedtls_gcm_update( ctx, input, length, output, 0, &olen ) ) != 0 ) {
+         return ( ret );
+     }
+ 
+-    if ( ( ret = esp_aes_gcm_finish( ctx, output, 0, &olen, tag, tag_len ) ) != 0 ) {
++    if ( ( ret = esp_mbedtls_gcm_finish( ctx, output, 0, &olen, tag, tag_len ) ) != 0 ) {
+         return ( ret );
+     }
+ 
+     return ret;
+ }
+ 
+-int esp_aes_gcm_crypt_and_tag( esp_gcm_context *ctx,
++int esp_mbedtls_gcm_crypt_and_tag( esp_gcm_context *ctx,
+                                int mode,
+                                size_t length,
+                                const unsigned char *iv,
+@@ -608,8 +606,8 @@ int esp_aes_gcm_crypt_and_tag( esp_gcm_context *ctx,
+     unsigned block_bytes = aad_len - stream_bytes;     // bytes which are in a full block
+ 
+     /* Due to hardware limition only certain cases are fully supported in HW */
+-    if (!esp_aes_gcm_input_support_hw_accel(length, aad, aad_len, input, output, stream_in)) {
+-        return esp_aes_gcm_crypt_and_tag_partial_hw(ctx, mode, length, iv, iv_len, aad, aad_len, input, output, tag_len, tag);
++    if (!esp_mbedtls_gcm_input_support_hw_accel(length, aad, aad_len, input, output, stream_in)) {
++        return esp_mbedtls_gcm_crypt_and_tag_partial_hw(ctx, mode, length, iv, iv_len, aad, aad_len, input, output, tag_len, tag);
+     }
+ 
+     /* Limit aad len to a single DMA descriptor to simplify DMA handling
+@@ -651,7 +649,7 @@ int esp_aes_gcm_crypt_and_tag( esp_gcm_context *ctx,
+     ctx->aad_len = aad_len;
+     ctx->mode = mode;
+ 
+-    esp_aes_acquire_hardware();
++    esp_mbedtls_aes_acquire_hardware();
+     ctx->aes_ctx.key_in_hardware = 0;
+     ctx->aes_ctx.key_in_hardware = aes_hal_setkey(ctx->aes_ctx.key, ctx->aes_ctx.key_bytes, mode);
+ 
+@@ -690,24 +688,24 @@ int esp_aes_gcm_crypt_and_tag( esp_gcm_context *ctx,
+ 
+     aes_hal_gcm_set_j0(ctx->J0);
+ 
+-    ret = esp_aes_process_dma_gcm(&ctx->aes_ctx, input, output, length, aad_head_desc, aad_len);
++    ret = esp_mbedtls_aes_process_dma_gcm(&ctx->aes_ctx, input, output, length, aad_head_desc, aad_len);
+     if (ret != 0) {
+-        esp_aes_release_hardware();
++        esp_mbedtls_aes_release_hardware();
+         return ret;
+     }
+ 
+     aes_hal_gcm_read_tag(tag, tag_len);
+ 
+-    esp_aes_release_hardware();
++    esp_mbedtls_aes_release_hardware();
+ 
+     return ( ret );
+ #else
+-    return esp_aes_gcm_crypt_and_tag_partial_hw(ctx, mode, length, iv, iv_len, aad, aad_len, input, output, tag_len, tag);
++    return esp_mbedtls_gcm_crypt_and_tag_partial_hw(ctx, mode, length, iv, iv_len, aad, aad_len, input, output, tag_len, tag);
+ #endif
+ }
+ 
+ 
+-int esp_aes_gcm_auth_decrypt( esp_gcm_context *ctx,
++int esp_mbedtls_gcm_auth_decrypt( esp_gcm_context *ctx,
+                               size_t length,
+                               const unsigned char *iv,
+                               size_t iv_len,
+@@ -723,7 +721,7 @@ int esp_aes_gcm_auth_decrypt( esp_gcm_context *ctx,
+     size_t i;
+     int diff;
+ 
+-    if ( ( ret = esp_aes_gcm_crypt_and_tag( ctx, ESP_AES_DECRYPT, length,
++    if ( ( ret = esp_mbedtls_gcm_crypt_and_tag( ctx, ESP_AES_DECRYPT, length,
+                                             iv, iv_len, aad, aad_len,
+                                             input, output, tag_len, check_tag ) ) != 0 ) {
+         return ( ret );
+@@ -735,7 +733,7 @@ int esp_aes_gcm_auth_decrypt( esp_gcm_context *ctx,
+     }
+ 
+     if ( diff != 0 ) {
+-        bzero( output, length );
++        memset( output, 0, length );
+         return ( MBEDTLS_ERR_GCM_AUTH_FAILED );
+     }
+ 
+diff --git a/components/mbedtls/port/aes/esp_aes_xts.c b/components/mbedtls/port/aes/esp_aes_xts.c
+index d91f17e4ee..4699b39528 100644
+--- a/components/mbedtls/port/aes/esp_aes_xts.c
++++ b/components/mbedtls/port/aes/esp_aes_xts.c
+@@ -38,21 +38,19 @@
+ #include <sys/lock.h>
+ #include "mbedtls/aes.h"
+ 
+-#include "aes/esp_aes.h"
+-
+-void esp_aes_xts_init( esp_aes_xts_context *ctx )
++void esp_mbedtls_aes_xts_init( esp_aes_xts_context *ctx )
+ {
+-    esp_aes_init( &ctx->crypt );
+-    esp_aes_init( &ctx->tweak );
++    esp_mbedtls_aes_init( &ctx->crypt );
++    esp_mbedtls_aes_init( &ctx->tweak );
+ }
+ 
+-void esp_aes_xts_free( esp_aes_xts_context *ctx )
++void esp_mbedtls_aes_xts_free( esp_aes_xts_context *ctx )
+ {
+-    esp_aes_free( &ctx->crypt );
+-    esp_aes_free( &ctx->tweak );
++    esp_mbedtls_aes_free( &ctx->crypt );
++    esp_mbedtls_aes_free( &ctx->tweak );
+ }
+ 
+-static int esp_aes_xts_decode_keys( const unsigned char *key,
++static int esp_mbedtls_aes_xts_decode_keys( const unsigned char *key,
+                                     unsigned int keybits,
+                                     const unsigned char **key1,
+                                     unsigned int *key1bits,
+@@ -76,7 +74,7 @@ static int esp_aes_xts_decode_keys( const unsigned char *key,
+     return 0;
+ }
+ 
+-int esp_aes_xts_setkey_enc( esp_aes_xts_context *ctx,
++int esp_mbedtls_aes_xts_setkey_enc( esp_aes_xts_context *ctx,
+                             const unsigned char *key,
+                             unsigned int keybits)
+ {
+@@ -84,23 +82,23 @@ int esp_aes_xts_setkey_enc( esp_aes_xts_context *ctx,
+     const unsigned char *key1, *key2;
+     unsigned int key1bits, key2bits;
+ 
+-    ret = esp_aes_xts_decode_keys( key, keybits, &key1, &key1bits,
++    ret = esp_mbedtls_aes_xts_decode_keys( key, keybits, &key1, &key1bits,
+                                    &key2, &key2bits );
+     if ( ret != 0 ) {
+         return ( ret );
+     }
+ 
+     /* Set the tweak key. Always set tweak key for the encryption mode. */
+-    ret = esp_aes_setkey( &ctx->tweak, key2, key2bits );
++    ret = esp_mbedtls_aes_setkey_enc( &ctx->tweak, key2, key2bits );
+     if ( ret != 0 ) {
+         return ( ret );
+     }
+ 
+     /* Set crypt key for encryption. */
+-    return esp_aes_setkey( &ctx->crypt, key1, key1bits );
++    return esp_mbedtls_aes_setkey_enc( &ctx->crypt, key1, key1bits );
+ }
+ 
+-int esp_aes_xts_setkey_dec( esp_aes_xts_context *ctx,
++int esp_mbedtls_aes_xts_setkey_dec( esp_aes_xts_context *ctx,
+                             const unsigned char *key,
+                             unsigned int keybits)
+ {
+@@ -108,20 +106,20 @@ int esp_aes_xts_setkey_dec( esp_aes_xts_context *ctx,
+     const unsigned char *key1, *key2;
+     unsigned int key1bits, key2bits;
+ 
+-    ret = esp_aes_xts_decode_keys( key, keybits, &key1, &key1bits,
++    ret = esp_mbedtls_aes_xts_decode_keys( key, keybits, &key1, &key1bits,
+                                    &key2, &key2bits );
+     if ( ret != 0 ) {
+         return ( ret );
+     }
+ 
+     /* Set the tweak key. Always set tweak key for encryption. */
+-    ret = esp_aes_setkey( &ctx->tweak, key2, key2bits );
++    ret = esp_mbedtls_aes_setkey_dec( &ctx->tweak, key2, key2bits );
+     if ( ret != 0 ) {
+         return ( ret );
+     }
+ 
+     /* Set crypt key for decryption. */
+-    return esp_aes_setkey( &ctx->crypt, key1, key1bits );
++    return esp_mbedtls_aes_setkey_dec( &ctx->crypt, key1, key1bits );
+ }
+ 
+ /* Endianess with 64 bits values */
+@@ -179,7 +177,7 @@ static void esp_gf128mul_x_ble( unsigned char r[16],
+ /*
+  * AES-XTS buffer encryption/decryption
+  */
+-int esp_aes_crypt_xts( esp_aes_xts_context *ctx,
++int esp_mbedtls_aes_crypt_xts( esp_aes_xts_context *ctx,
+                        int mode,
+                        size_t length,
+                        const unsigned char data_unit[16],
+@@ -204,7 +202,7 @@ int esp_aes_crypt_xts( esp_aes_xts_context *ctx,
+     }
+ 
+     /* Compute the tweak. */
+-    ret = esp_aes_crypt_ecb( &ctx->tweak, MBEDTLS_AES_ENCRYPT,
++    ret = esp_mbedtls_aes_crypt_ecb( &ctx->tweak, MBEDTLS_AES_ENCRYPT,
+                              data_unit, tweak );
+     if ( ret != 0 ) {
+         return ( ret );
+@@ -227,7 +225,7 @@ int esp_aes_crypt_xts( esp_aes_xts_context *ctx,
+             tmp[i] = input[i] ^ tweak[i];
+         }
+ 
+-        ret = esp_aes_crypt_ecb( &ctx->crypt, mode, tmp, tmp );
++        ret = esp_mbedtls_aes_crypt_ecb( &ctx->crypt, mode, tmp, tmp );
+         if ( ret != 0 ) {
+             return ( ret );
+         }
+@@ -268,7 +266,7 @@ int esp_aes_crypt_xts( esp_aes_xts_context *ctx,
+             tmp[i] = prev_output[i] ^ t[i];
+         }
+ 
+-        ret = esp_aes_crypt_ecb( &ctx->crypt, mode, tmp, tmp );
++        ret = esp_mbedtls_aes_crypt_ecb( &ctx->crypt, mode, tmp, tmp );
+         if ( ret != 0 ) {
+             return ret;
+         }
+diff --git a/components/mbedtls/port/include/aes_alt.h b/components/mbedtls/port/include/aes_alt.h
+index 2f8e958b27..b09411bf38 100644
+--- a/components/mbedtls/port/include/aes_alt.h
++++ b/components/mbedtls/port/include/aes_alt.h
+@@ -32,34 +32,35 @@ extern "C" {
+ 
+ typedef esp_aes_context mbedtls_aes_context;
+ 
+-#define mbedtls_aes_init            esp_aes_init
+-#define mbedtls_aes_free            esp_aes_free
+-#define mbedtls_aes_setkey_enc      esp_aes_setkey
+-#define mbedtls_aes_setkey_dec      esp_aes_setkey
+-#define mbedtls_aes_crypt_ecb       esp_aes_crypt_ecb
++#define mbedtls_aes_init            esp_mbedtls_aes_init
++#define mbedtls_aes_free            esp_mbedtls_aes_free
++#define mbedtls_aes_setkey_enc      esp_mbedtls_aes_setkey_enc
++#define mbedtls_aes_setkey_dec      esp_mbedtls_aes_setkey_dec
++#define mbedtls_aes_crypt_ecb       esp_mbedtls_aes_crypt_ecb
+ #if defined(MBEDTLS_CIPHER_MODE_CBC)
+-#define mbedtls_aes_crypt_cbc       esp_aes_crypt_cbc
++#define mbedtls_aes_crypt_cbc       esp_mbedtls_aes_crypt_cbc
+ #endif
+ #if defined(MBEDTLS_CIPHER_MODE_CFB)
+-#define mbedtls_aes_crypt_cfb128    esp_aes_crypt_cfb128
+-#define mbedtls_aes_crypt_cfb8      esp_aes_crypt_cfb8
++#define mbedtls_aes_crypt_cfb128    esp_mbedtls_aes_crypt_cfb128
++#define mbedtls_aes_crypt_cfb8      esp_mbedtls_aes_crypt_cfb8
+ #endif
+ #if defined(MBEDTLS_CIPHER_MODE_CTR)
+-#define mbedtls_aes_crypt_ctr       esp_aes_crypt_ctr
++#define mbedtls_aes_crypt_ctr       esp_mbedtls_aes_crypt_ctr
+ #endif
+ #if defined(MBEDTLS_CIPHER_MODE_OFB)
+-#define mbedtls_aes_crypt_ofb       esp_aes_crypt_ofb
++#define mbedtls_aes_crypt_ofb       esp_mbedtls_aes_crypt_ofb
+ #endif
+ #if defined(MBEDTLS_CIPHER_MODE_XTS)
+ typedef esp_aes_xts_context mbedtls_aes_xts_context;
+-#define mbedtls_aes_xts_init            esp_aes_xts_init
+-#define mbedtls_aes_xts_free            esp_aes_xts_free
+-#define mbedtls_aes_xts_setkey_enc      esp_aes_xts_setkey_enc
+-#define mbedtls_aes_xts_setkey_dec      esp_aes_xts_setkey_dec
+-#define mbedtls_aes_crypt_xts       esp_aes_crypt_xts
++#define mbedtls_aes_xts_init            esp_mbedtls_aes_xts_init
++#define mbedtls_aes_xts_free            esp_mbedtls_aes_xts_free
++#define mbedtls_aes_xts_setkey_enc      esp_mbedtls_aes_xts_setkey_enc
++#define mbedtls_aes_xts_setkey_dec      esp_mbedtls_aes_xts_setkey_dec
++#define mbedtls_aes_crypt_xts       esp_mbedtls_aes_crypt_xts
+ #endif
+-#define mbedtls_internal_aes_encrypt         esp_internal_aes_encrypt
+-#define mbedtls_internal_aes_decrypt         esp_internal_aes_decrypt
++#define mbedtls_internal_aes_encrypt         esp_mbedtls_internal_aes_encrypt
++#define mbedtls_internal_aes_decrypt         esp_mbedtls_internal_aes_decrypt
++
+ #endif /* MBEDTLS_AES_ALT */
+ 
+ #ifdef __cplusplus
+diff --git a/components/mbedtls/port/sha/block/esp_sha1.c b/components/mbedtls/port/sha/block/esp_sha1.c
+index 1e73fe5d92..8c38a2c3b6 100644
+--- a/components/mbedtls/port/sha/block/esp_sha1.c
++++ b/components/mbedtls/port/sha/block/esp_sha1.c
+@@ -56,14 +56,14 @@ static void mbedtls_zeroize( void *v, size_t n )
+ }
+ #endif
+ 
+-void mbedtls_sha1_init( mbedtls_sha1_context *ctx )
++void esp_mbedtls_sha1_init( mbedtls_sha1_context *ctx )
+ {
+     assert(ctx != NULL);
+ 
+     memset( ctx, 0, sizeof( mbedtls_sha1_context ) );
+ }
+ 
+-void mbedtls_sha1_free( mbedtls_sha1_context *ctx )
++void esp_mbedtls_sha1_free( mbedtls_sha1_context *ctx )
+ {
+     if ( ctx == NULL ) {
+         return;
+@@ -71,7 +71,7 @@ void mbedtls_sha1_free( mbedtls_sha1_context *ctx )
+     mbedtls_zeroize( ctx, sizeof( mbedtls_sha1_context ) );
+ }
+ 
+-void mbedtls_sha1_clone( mbedtls_sha1_context *dst,
++void esp_mbedtls_sha1_clone( mbedtls_sha1_context *dst,
+                          const mbedtls_sha1_context *src )
+ {
+     memcpy(dst, src, sizeof(mbedtls_sha1_context));
+@@ -80,7 +80,7 @@ void mbedtls_sha1_clone( mbedtls_sha1_context *dst,
+ /*
+  * SHA-1 context setup
+  */
+-int mbedtls_sha1_starts( mbedtls_sha1_context *ctx )
++int esp_mbedtls_sha1_starts( mbedtls_sha1_context *ctx )
+ {
+     ctx->total[0] = 0;
+     ctx->total[1] = 0;
+@@ -120,7 +120,7 @@ int mbedtls_internal_sha1_process( mbedtls_sha1_context *ctx, const unsigned cha
+     return 0;
+ }
+ 
+-int mbedtls_sha1_update( mbedtls_sha1_context *ctx, const unsigned char *input, size_t ilen )
++int esp_mbedtls_sha1_update( mbedtls_sha1_context *ctx, const unsigned char *input, size_t ilen )
+ {
+     size_t fill;
+     uint32_t left, local_len = 0;
+@@ -187,7 +187,7 @@ static const unsigned char sha1_padding[64] = {
+ /*
+ * SHA-1 final digest
+  */
+-int mbedtls_sha1_finish( mbedtls_sha1_context *ctx, unsigned char output[20] )
++int esp_mbedtls_sha1_finish( mbedtls_sha1_context *ctx, unsigned char output[20] )
+ {
+     int ret = -1;
+     uint32_t last, padn;
+@@ -205,10 +205,10 @@ int mbedtls_sha1_finish( mbedtls_sha1_context *ctx, unsigned char output[20] )
+     padn = ( last < 56 ) ? ( 56 - last ) : ( 120 - last );
+ 
+ 
+-    if ( ( ret = mbedtls_sha1_update( ctx, sha1_padding, padn ) ) != 0 ) {
++    if ( ( ret = esp_mbedtls_sha1_update( ctx, sha1_padding, padn ) ) != 0 ) {
+         return ret;
+     }
+-    if ( ( ret = mbedtls_sha1_update( ctx, msglen, 8 ) ) != 0 ) {
++    if ( ( ret = esp_mbedtls_sha1_update( ctx, msglen, 8 ) ) != 0 ) {
+         return ret;
+     }
+ 
+diff --git a/components/mbedtls/port/sha/block/esp_sha256.c b/components/mbedtls/port/sha/block/esp_sha256.c
+index eb456afda7..d13dca8f20 100644
+--- a/components/mbedtls/port/sha/block/esp_sha256.c
++++ b/components/mbedtls/port/sha/block/esp_sha256.c
+@@ -65,14 +65,14 @@ do {                                                    \
+ } while( 0 )
+ #endif
+ 
+-void mbedtls_sha256_init( mbedtls_sha256_context *ctx )
++void esp_mbedtls_sha256_init( mbedtls_sha256_context *ctx )
+ {
+     assert(ctx != NULL);
+ 
+     memset( ctx, 0, sizeof( mbedtls_sha256_context ) );
+ }
+ 
+-void mbedtls_sha256_free( mbedtls_sha256_context *ctx )
++void esp_mbedtls_sha256_free( mbedtls_sha256_context *ctx )
+ {
+     if ( ctx == NULL ) {
+         return;
+@@ -81,7 +81,7 @@ void mbedtls_sha256_free( mbedtls_sha256_context *ctx )
+     mbedtls_zeroize( ctx, sizeof( mbedtls_sha256_context ) );
+ }
+ 
+-void mbedtls_sha256_clone( mbedtls_sha256_context *dst,
++void esp_mbedtls_sha256_clone( mbedtls_sha256_context *dst,
+                            const mbedtls_sha256_context *src )
+ {
+     *dst = *src;
+@@ -90,7 +90,7 @@ void mbedtls_sha256_clone( mbedtls_sha256_context *dst,
+ /*
+  * SHA-256 context setup
+  */
+-int mbedtls_sha256_starts( mbedtls_sha256_context *ctx, int is224 )
++int esp_mbedtls_sha256_starts( mbedtls_sha256_context *ctx, int is224 )
+ {
+     memset( ctx, 0, sizeof( mbedtls_sha256_context ) );
+ 
+@@ -136,7 +136,7 @@ int mbedtls_internal_sha256_process( mbedtls_sha256_context *ctx, const unsigned
+ /*
+  * SHA-256 process buffer
+  */
+-int mbedtls_sha256_update( mbedtls_sha256_context *ctx, const unsigned char *input,
++int esp_mbedtls_sha256_update( mbedtls_sha256_context *ctx, const unsigned char *input,
+                                size_t ilen )
+ {
+     size_t fill;
+@@ -206,7 +206,7 @@ static const unsigned char sha256_padding[64] = {
+ /*
+  * SHA-256 final digest
+  */
+-int mbedtls_sha256_finish( mbedtls_sha256_context *ctx, unsigned char *output )
++int esp_mbedtls_sha256_finish( mbedtls_sha256_context *ctx, unsigned char *output )
+ {
+     int ret = -1;
+     uint32_t last, padn;
+@@ -223,11 +223,11 @@ int mbedtls_sha256_finish( mbedtls_sha256_context *ctx, unsigned char *output )
+     last = ctx->total[0] & 0x3F;
+     padn = ( last < 56 ) ? ( 56 - last ) : ( 120 - last );
+ 
+-    if ( ( ret = mbedtls_sha256_update( ctx, sha256_padding, padn ) ) != 0 ) {
++    if ( ( ret = esp_mbedtls_sha256_update( ctx, sha256_padding, padn ) ) != 0 ) {
+         return ret;
+     }
+ 
+-    if ( ( ret = mbedtls_sha256_update( ctx, msglen, 8 ) ) != 0 ) {
++    if ( ( ret = esp_mbedtls_sha256_update( ctx, msglen, 8 ) ) != 0 ) {
+         return ret;
+     }
+ 
+diff --git a/nuttx/esp32c3/include/sdkconfig.h b/nuttx/esp32c3/include/sdkconfig.h
+index fac1eaeeb8..bb7c75407c 100644
+--- a/nuttx/esp32c3/include/sdkconfig.h
++++ b/nuttx/esp32c3/include/sdkconfig.h
+@@ -345,8 +345,10 @@
+ #define CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN 4096
+ #define CONFIG_MBEDTLS_SSL_KEEP_PEER_CERTIFICATE 1
+ #define CONFIG_MBEDTLS_PKCS7_C 1
++#define CONFIG_MBEDTLS_HARDWARE_AES 1
+ #define CONFIG_MBEDTLS_AES_USE_INTERRUPT 1
+ #define CONFIG_MBEDTLS_MPI_USE_INTERRUPT 1
++#define CONFIG_MBEDTLS_HARDWARE_SHA 1
+ #define CONFIG_MBEDTLS_ROM_MD5 1
+ #define CONFIG_MBEDTLS_HAVE_TIME 1
+ #define CONFIG_MBEDTLS_ECDSA_DETERMINISTIC 1

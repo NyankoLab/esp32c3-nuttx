@@ -32,7 +32,7 @@ index fb0e9d1db5..9cf90a0cda 100644
  
  if(NOT CONFIG_DEBUG_NOOPT)
 diff --git a/arch/risc-v/src/common/espressif/Wireless.mk b/arch/risc-v/src/common/espressif/Wireless.mk
-index e2e627ca9f..2555442f05 100644
+index e2e627ca9f..f30be285cf 100644
 --- a/arch/risc-v/src/common/espressif/Wireless.mk
 +++ b/arch/risc-v/src/common/espressif/Wireless.mk
 @@ -28,7 +28,7 @@ EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$
@@ -44,7 +44,7 @@ index e2e627ca9f..2555442f05 100644
  
  ifeq ($(CONFIG_ESPRESSIF_WIFI),y)
  
-@@ -45,6 +45,18 @@ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY
+@@ -45,6 +45,35 @@ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY
  INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)mbedtls$(DELIM)port$(DELIM)include
  INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)nuttx$(DELIM)include$(DELIM)mbedtls
  
@@ -59,6 +59,23 @@ index e2e627ca9f..2555442f05 100644
 +CHIP_CSRCS += x509.c
 +CHIP_CSRCS += x509_crt.c
 +CHIP_CSRCS += mbedtls_sslutils.c
++
++VPATH += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal
++VPATH += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)mbedtls$(DELIM)port$(DELIM)aes
++VPATH += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)mbedtls$(DELIM)port$(DELIM)aes$(DELIM)block
++VPATH += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)mbedtls$(DELIM)port$(DELIM)sha$(DELIM)block
++
++INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)mbedtls$(DELIM)port$(DELIM)aes$(DELIM)dma$(DELIM)include
++
++CHIP_CSRCS += aes_hal.c
++CHIP_CSRCS += sha_hal.c
++CHIP_CSRCS += esp_aes.c
++CHIP_CSRCS += esp_aes_common.c
++CHIP_CSRCS += esp_aes_gcm.c
++CHIP_CSRCS += esp_aes_xts.c
++CHIP_CSRCS += esp_sha1.c
++CHIP_CSRCS += esp_sha256.c
++CHIP_CSRCS += sha.c
 +
  ### Define Espressif's configs for mbedTLS
  

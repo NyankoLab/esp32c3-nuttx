@@ -43,6 +43,7 @@ make olddefconfig
 set -e
 make || true
 git apply --directory=arch/risc-v/src/esp32c3/esp-hal-3rdparty ../patch/esp32c3-mbedtls.diff
+rm arch/risc-v/src/net_sockets.o
 mv arch/risc-v/src/esp32c3/esp-hal-3rdparty/components/mbedtls/port/net_sockets.c arch/risc-v/src/esp32c3/esp-hal-3rdparty/components/mbedtls/port/net_sockets.c.old
 make
 cd ..

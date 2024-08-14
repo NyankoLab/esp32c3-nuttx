@@ -3,14 +3,15 @@
 ## Feature
 - [x] Binary Loader for ELF
 - [x] Hardware AES
+- [ ] Hardware MPI
 - [x] Hardware SHA
-- [x] HTTP
-- [ ] HTTPS
 - [x] MCUBoot Agent
-- [x] MCUBoot Loader
+- [x] MCUBoot Agent with SSL
 - [x] MQTT
 - [x] uip WebClient
 - [x] uip WebServer
+- [x] wget
+- [x] wget with SSL
 
 ## Binary
 |Type   |Address |File|

@@ -54,10 +54,12 @@
 #include <nuttx/queue.h>
 
 #include "mbedtls/ctr_drbg.h"
+#include "mbedtls/debug.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/esp_mbedtls.h"
 
+#define mbedtls_debug_set_threshold   esp_mbedtls_debug_set_threshold
 #define mbedtls_pk_parse_keyfile      esp_mbedtls_pk_parse_keyfile     
 #define mbedtls_ssl_close_notify      esp_mbedtls_ssl_close_notify     
 #define mbedtls_ssl_conf_read_timeout esp_mbedtls_ssl_conf_read_timeout
@@ -79,7 +81,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define SSLUTIL_CERTVERIFY_STAT_BUFFLEN  128
+#define SSLUTIL_CERTVERIFY_STAT_BUFFLEN     128
+#define CONFIG_EXTERNALS_SSLUTILS_LOGLEVEL  4
 
 /****************************************************************************
  * Private Functions prototype
@@ -133,7 +136,7 @@ struct webclient_tls_connection
  * Private Functions
  ****************************************************************************/
 
-#ifdef CONFIG_EXTERNALS_MBEDTLS
+#ifdef CONFIG_MBEDTLS_DEBUG
 /****************************************************************************
  * Name: sslutil_debuglog
  ****************************************************************************/
@@ -216,11 +219,11 @@ static struct webclient_tls_connection *sslutil_create_connection(
           return NULL;
         }
 
-#ifdef CONFIG_EXTERNALS_MBEDTLS
+#ifdef CONFIG_MBEDTLS_DEBUG
       /* Initialize mbedTLS debug log config */
 
-      conn->conf.f_dbg = sslutil_debuglog;
-      conn->conf.p_dbg = stdout;
+      conn->conf.MBEDTLS_PRIVATE(f_dbg) = sslutil_debuglog;
+      conn->conf.MBEDTLS_PRIVATE(p_dbg) = stdout;
       mbedtls_debug_set_threshold(CONFIG_EXTERNALS_SSLUTILS_LOGLEVEL);
 #endif
     }

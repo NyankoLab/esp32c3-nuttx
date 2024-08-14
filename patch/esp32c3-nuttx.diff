@@ -32,7 +32,7 @@ index fb0e9d1db5..9cf90a0cda 100644
  
  if(NOT CONFIG_DEBUG_NOOPT)
 diff --git a/arch/risc-v/src/common/espressif/Wireless.mk b/arch/risc-v/src/common/espressif/Wireless.mk
-index e2e627ca9f..f30be285cf 100644
+index e2e627ca9f..54b7e0874e 100644
 --- a/arch/risc-v/src/common/espressif/Wireless.mk
 +++ b/arch/risc-v/src/common/espressif/Wireless.mk
 @@ -28,7 +28,7 @@ EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$
@@ -48,7 +48,7 @@ index e2e627ca9f..f30be285cf 100644
  INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)mbedtls$(DELIM)port$(DELIM)include
  INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)nuttx$(DELIM)include$(DELIM)mbedtls
  
-+CHIP_CSRCS += esp_net_sockets.c
++CHIP_CSRCS += net_sockets.c
 +CHIP_CSRCS += pkcs12.c
 +CHIP_CSRCS += ssl_ciphersuites.c
 +CHIP_CSRCS += ssl_client.c

@@ -1,2 +1,2 @@
-mount -t littlefs /dev/espflash /usr
-sh /usr/init.d/rcS
+mount -t littlefs /dev/espflash /home
+sh /home/nuttx/.bashrc

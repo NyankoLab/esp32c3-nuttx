@@ -4,6 +4,34 @@ diff --git a/components/mbedtls/mbedtls b/components/mbedtls/mbedtls
 @@ -1 +1 @@
 -Subproject commit 65b3c0857c9f207dcb0b646f2b4ebd8e5edf83c1
 +Subproject commit 65b3c0857c9f207dcb0b646f2b4ebd8e5edf83c1-dirty
+diff --git a/components/mbedtls/mbedtls/library/net_sockets.c b/components/mbedtls/mbedtls/library/net_sockets.c
+index e63d08b..1cb9a8a 100644
+--- a/components/mbedtls/mbedtls/library/net_sockets.c
++++ b/components/mbedtls/mbedtls/library/net_sockets.c
+@@ -33,7 +33,7 @@
+ 
+ #if !defined(unix) && !defined(__unix__) && !defined(__unix) && \
+     !defined(__APPLE__) && !defined(_WIN32) && !defined(__QNXNTO__) && \
+-    !defined(__HAIKU__) && !defined(__midipix__)
++    !defined(__HAIKU__) && !defined(__midipix__) && !defined(__NuttX__)
+ #error "This module only works on Unix and Windows, see MBEDTLS_NET_C in mbedtls_config.h"
+ #endif
+ 
+diff --git a/components/mbedtls/port/include/mbedtls/esp_config.h b/components/mbedtls/port/include/mbedtls/esp_config.h
+index ddebe16903..7ace9955b3 100644
+--- a/components/mbedtls/port/include/mbedtls/esp_config.h
++++ b/components/mbedtls/port/include/mbedtls/esp_config.h
+@@ -2175,9 +2175,7 @@
+  *
+  * This module provides networking routines.
+  */
+-#ifdef MBEDTLS_NET_C
+-#undef MBEDTLS_NET_C
+-#endif
++#define MBEDTLS_NET_C
+ 
+ /**
+  * \def MBEDTLS_OID_C
 diff --git a/components/mbedtls/port/aes/block/esp_aes.c b/components/mbedtls/port/aes/block/esp_aes.c
 index fcf4e2a67b..3a7e3f91c6 100644
 --- a/components/mbedtls/port/aes/block/esp_aes.c

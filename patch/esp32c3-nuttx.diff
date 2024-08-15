@@ -299,7 +299,7 @@ index 3623e7ff62..04f50a06e6 100644
  "setlogmask","syslog.h","","int","int"
  "setpriority","sys/resource.h","","int","int","id_t","int"
 diff --git a/libs/libc/machine/risc-v/arch_elf.c b/libs/libc/machine/risc-v/arch_elf.c
-index 8e826bddc5..ff7ae765dc 100644
+index 8e826bddc5..ba43a6617b 100644
 --- a/libs/libc/machine/risc-v/arch_elf.c
 +++ b/libs/libc/machine/risc-v/arch_elf.c
 @@ -78,6 +78,7 @@ static struct rname_code_s _rname_table[] =
@@ -310,7 +310,19 @@ index 8e826bddc5..ff7ae765dc 100644
    {"RVC_JUMP", R_RISCV_RVC_JUMP},
    {"RVC_BRANCH", R_RISCV_RVC_BRANCH},
    {"32_PCREL", R_RISCV_32_PCREL},
-@@ -394,7 +395,7 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
+@@ -104,6 +105,11 @@ static const char *_get_rname(int type)
+   return "?????";
+ }
+ 
++static uint32_t _extract_bits(uint32_t num, int low, int size)
++{
++  return (num & (((1 << size) - 1) << low)) >> low;
++}
++
+ /****************************************************************************
+  * Name: _get_val, set_val, _add_val
+  *
+@@ -394,7 +400,7 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
  
    relotype = ELF_R_TYPE(rel->r_info);
  
@@ -319,23 +331,23 @@ index 8e826bddc5..ff7ae765dc 100644
      {
        /* NOTE: RELAX has no symbol, so just return */
  
-@@ -561,12 +562,21 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
+@@ -561,12 +567,21 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
            uint32_t val = _get_val((uint16_t *)addr) & 0xfe000f80;
  
            /* NOTE: we assume that a compiler adds an immediate value */
 +          if (offset != 0 && val == 0)
 +            {
-+              val = (offset & 0x001e) << 7;
-+              val |= (offset & 0x0800) >> 4;
-+              val |= (offset & 0x07e0) << 20;
-+              val |= (offset & 0x1000) << 19;
++              uint32_t imm12 = _extract_bits(offset, 12, 1) << 31;
++              uint32_t imm10_5 = _extract_bits(offset, 5, 6) << 25;
++              uint32_t imm4_1 = _extract_bits(offset, 1, 4) << 8;
++              uint32_t imm11 = _extract_bits(offset, 11, 1) << 7;
  
 -          ASSERT(offset && val);
 -
 -          binfo("offset for Bx=%ld (0x%lx) (val=0x%08" PRIx32 ") "
 -                "already set!\n",
 -                offset, offset, val);
-+              _add_val((uint16_t *)addr, val);
++              _add_val((uint16_t *)addr, imm12 | imm10_5 | imm4_1 | imm11);
 +            }
 +          else
 +            {
@@ -346,7 +358,7 @@ index 8e826bddc5..ff7ae765dc 100644
          }
          break;
  
-@@ -583,13 +593,22 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
+@@ -583,13 +598,22 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
            offset = (long)sym->st_value + (long)rel->r_addend - (long)addr;
            uint32_t val = _get_val((uint16_t *)addr) & 0xfffff000;
  
@@ -355,15 +367,15 @@ index 8e826bddc5..ff7ae765dc 100644
            /* NOTE: we assume that a compiler adds an immediate value */
 +          if (offset != 0 && val == 0)
 +            {
-+              val = (offset & 0x000ff000);
-+              val |= (offset & 0x00000800) << 9;
-+              val |= (offset & 0x000007fe) << 20;
-+              val |= (offset & 0x00100000) << 11;
++              uint32_t imm20 = _extract_bits(offset, 20, 1) << 31;
++              uint32_t imm10_1 = _extract_bits(offset, 1, 10) << 21;
++              uint32_t imm11 = _extract_bits(offset, 11, 1) << 20;
++              uint32_t imm19_12 = _extract_bits(offset, 12, 8) << 12;
  
 -          binfo("offset for JAL=%ld (0x%lx) (val=0x%08" PRIx32 ") "
 -                "already set!\n",
 -                offset, offset, val);
-+              _add_val((uint16_t *)addr, val);
++              _add_val((uint16_t *)addr, imm20 | imm10_1 | imm11 | imm19_12);
 +            }
 +          else
 +            {
@@ -374,7 +386,7 @@ index 8e826bddc5..ff7ae765dc 100644
          }
          break;
  
-@@ -692,8 +711,20 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
+@@ -692,8 +716,25 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
  
            uint16_t val = (*(uint16_t *)addr) & 0x1ffc;
  
@@ -383,11 +395,16 @@ index 8e826bddc5..ff7ae765dc 100644
 +          /* NOTE: we assume that a compiler adds an immediate value */
 +          if (offset != 0 && val == 0)
 +            {
-+              val = (offset & 0x001e) << 2;
-+              val |= (offset & 0x0020) >> 3;
-+              val |= (offset & 0x0fc0) << 1;
++              uint16_t imm11 = _extract_bits(offset, 11, 1) << 12;
++              uint16_t imm4 = _extract_bits(offset, 4, 1) << 11;
++              uint16_t imm9_8 = _extract_bits(offset, 8, 2) << 9;
++              uint16_t imm10 = _extract_bits(offset, 10, 1) << 8;
++              uint16_t imm6 = _extract_bits(offset, 6, 1) << 7;
++              uint16_t imm7 = _extract_bits(offset, 7, 1) << 6;
++              uint16_t imm3_1 = _extract_bits(offset, 1, 3) << 3;
++              uint16_t imm5 = _extract_bits(offset, 5, 1) << 2;
 +
-+              _add_val((uint16_t *)addr, val);
++              _add_val((uint16_t *)addr, imm11 | imm4 | imm9_8 | imm10 | imm6 | imm7 | imm3_1 | imm5);
 +            }
 +          else
 +            {
@@ -397,21 +414,23 @@ index 8e826bddc5..ff7ae765dc 100644
          }
          break;
  
-@@ -713,11 +744,19 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
+@@ -713,11 +754,21 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
            uint16_t val = (*(uint16_t *)addr) & 0x1c7c;
  
            /* NOTE: we assume that a compiler adds an immediate value */
 +          if (offset != 0 && val == 0)
 +            {
-+              val = (offset & 0x001e) << 2;
-+              val |= (offset & 0x0020) >> 3;
-+              val |= (offset & 0x01c0) << 4;
++              uint16_t imm8 = _extract_bits(offset, 8, 1) << 12;
++              uint16_t imm4_3 = _extract_bits(offset, 3, 2) << 10;
++              uint16_t imm7_6 = _extract_bits(offset, 6, 2) << 5;
++              uint16_t imm2_1 = _extract_bits(offset, 1, 2) << 3;
++              uint16_t imm5 = _extract_bits(offset, 5, 1) << 2;
  
 -          ASSERT(offset && val);
 -
 -          binfo("offset for C.Bx=%ld (0x%lx) (val=0x%04x) already set!\n",
 -                offset, offset, val);
-+              _add_val((uint16_t *)addr, val);
++              _add_val((uint16_t *)addr, imm8 | imm4_3 | imm7_6 | imm2_1 | imm5);
 +            }
 +          else
 +            {

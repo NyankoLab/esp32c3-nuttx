@@ -1,3 +1,16 @@
+diff --git a/netutils/dhcpd/dhcpd.c b/netutils/dhcpd/dhcpd.c
+index 2f8f280d5..d53a33c38 100644
+--- a/netutils/dhcpd/dhcpd.c
++++ b/netutils/dhcpd/dhcpd.c
+@@ -516,7 +516,7 @@ static in_addr_t dhcpd_allocipaddr(void)
+       lease = dhcpd_findbyipaddr(ipaddr);
+       if ((!lease || dhcpd_leaseexpired(lease)))
+         {
+-#ifdef CONFIG_CPP_HAVE_WARNING
++#ifdef CONFIG_CPP_HAVE_WARNING_PASS
+ #  warning "FIXME: Should check if anything responds to an ARP request or ping"
+ #  warning "       to verify that there is no other user of this IP address"
+ #endif
 diff --git a/netutils/mqttc/0001_add_connection_status.patch b/netutils/mqttc/0001_add_connection_status.patch
 index 01c49c0f7..8c1f259a4 100644
 --- a/netutils/mqttc/0001_add_connection_status.patch
@@ -18,3 +31,93 @@ index 01c49c0f7..8c1f259a4 100644
  @@ -1233,6 +1233,9 @@
   
       /** @brief The sending message queue. */
+diff --git a/netutils/webserver/httpd.c b/netutils/webserver/httpd.c
+index 4602e65e9..d06064b2d 100644
+--- a/netutils/webserver/httpd.c
++++ b/netutils/webserver/httpd.c
+@@ -139,7 +139,7 @@
+  * Private Functions
+  ****************************************************************************/
+ 
+-static int httpd_open(const char *name, struct httpd_fs_file *file)
++int httpd_open(const char *name, struct httpd_fs_file *file)
+ {
+ #if defined(CONFIG_NETUTILS_HTTPD_CLASSIC)
+   return httpd_fs_open(name, file);
+@@ -152,7 +152,7 @@ static int httpd_open(const char *name, struct httpd_fs_file *file)
+ #endif
+ }
+ 
+-static int httpd_openindex(struct httpd_state *pstate)
++int httpd_openindex(struct httpd_state *pstate)
+ {
+   int ret;
+   size_t z;
+@@ -181,7 +181,7 @@ static int httpd_openindex(struct httpd_state *pstate)
+   return ret;
+ }
+ 
+-static int httpd_close(struct httpd_fs_file *file)
++int httpd_close(struct httpd_fs_file *file)
+ {
+ #if defined(CONFIG_NETUTILS_HTTPD_CLASSIC)
+   return OK;
+@@ -372,7 +372,7 @@ static int send_chunk(struct httpd_state *pstate, const char *buf, int len)
+   return OK;
+ }
+ 
+-static int httpd_senderror(struct httpd_state *pstate, int status)
++int httpd_senderror(struct httpd_state *pstate, int status)
+ {
+   int ret;
+   char msg[10 + 1];
+@@ -424,7 +424,7 @@ static int httpd_senderror(struct httpd_state *pstate, int status)
+   return ret;
+ }
+ 
+-static int httpd_sendfile(struct httpd_state *pstate)
++int httpd_sendfile(struct httpd_state *pstate)
+ {
+ #ifndef CONFIG_NETUTILS_HTTPD_SCRIPT_DISABLE
+   char *ptr;
+@@ -503,7 +503,7 @@ done:
+   return ret;
+ }
+ 
+-static inline int httpd_parse(struct httpd_state *pstate)
++int httpd_parse(struct httpd_state *pstate)
+ {
+   char *o;
+ 
+diff --git a/netutils/webserver/httpd.h b/netutils/webserver/httpd.h
+index 0a28fce12..fd92b2e34 100644
+--- a/netutils/webserver/httpd.h
++++ b/netutils/webserver/httpd.h
+@@ -56,6 +56,15 @@
+  * Public Function Prototypes
+  ****************************************************************************/
+ 
++int httpd_open(const char *name, struct httpd_fs_file *file);
++int httpd_openindex(struct httpd_state *pstate);
++int httpd_close(struct httpd_fs_file *file);
++int httpd_senderror(struct httpd_state *pstate, int status);
++int httpd_sendfile(struct httpd_state *pstate);
++int httpd_parse(struct httpd_state *pstate);
++int httpd_send_datachunk(int sockfd, void *data, int len, bool chunked);
++int httpd_send_headers(struct httpd_state *pstate, int status, int len);
++
+ /* 'file' must be allocated by caller and will be filled in by the function. */
+ 
+ #if defined(CONFIG_NETUTILS_HTTPD_SENDFILE)
+diff --git a/wireless/wapi/src/network.c b/wireless/wapi/src/network.c
+index 7a4141ef9..adeb51fbd 100644
+--- a/wireless/wapi/src/network.c
++++ b/wireless/wapi/src/network.c
+@@ -248,6 +248,7 @@ int wapi_set_ifdown(int sock, FAR const char *ifname)
+   if (ret >= 0)
+     {
+       ifr.ifr_flags &= ~IFF_UP;
++      ifr.ifr_flags |= IFF_DOWN;
+       ret = ioctl(sock, SIOCSIFFLAGS, (unsigned long)((uintptr_t)&ifr));
+       if (ret < 0)
+         {

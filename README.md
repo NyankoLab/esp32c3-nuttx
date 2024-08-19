@@ -7,14 +7,20 @@
 |NuttX  |0x010000|[nuttx-esp32c3.bin](https://github.com/NyankoLab/esp32c3-nuttx/releases/download/latest/nuttx-esp32c3.bin)|
 
 ## Enable
-- [x] Binary Loader for ELF
-- [x] LittleFS
-- [x] MQTT
+- [x] DHCP Client
+- [x] DHCP Server
+- [x] ELF Binary Loader
+- [x] LittleFS File System
+- [x] Local Time
+- [x] MQTT Client
 - [x] NTPClient
 - [x] Reboot
 - [x] uip WebClient
 - [x] uip WebServer
 - [x] wget
+- [x] WiFi SoftAP
+- [x] WiFi Station
+- [x] WiFi Thread
 
 ## Feature
 - [x] Hardware AES

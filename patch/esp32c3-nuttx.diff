@@ -119,6 +119,19 @@ index 97e5963f4b..e5b1a6e2c1 100644
 +endif
 +
  CFLAGS += ${DEFINE_PREFIX}_RETARGETABLE_LOCKING
+diff --git a/arch/risc-v/src/esp32c3/esp_wifi_adapter.c b/arch/risc-v/src/esp32c3/esp_wifi_adapter.c
+index ba1080f652..1602dd7e9d 100644
+--- a/arch/risc-v/src/esp32c3/esp_wifi_adapter.c
++++ b/arch/risc-v/src/esp32c3/esp_wifi_adapter.c
+@@ -5119,7 +5119,7 @@ int esp_wifi_softap_password(struct iwreq *iwr, bool set)
+ 
+       if (ext->alg != IW_ENCODE_ALG_NONE)
+         {
+-          memcpy(wifi_cfg.sta.password, pdata, len);
++          memcpy(wifi_cfg.ap.password, pdata, len);
+         }
+ 
+       if (g_softap_started)
 diff --git a/binfmt/libelf/libelf_symbols.c b/binfmt/libelf/libelf_symbols.c
 index bbc232cc76..1d9c1fe3a9 100644
 --- a/binfmt/libelf/libelf_symbols.c
@@ -441,22 +454,68 @@ index 8e826bddc5..ba43a6617b 100644
          break;
        case R_RISCV_32_PCREL:
 diff --git a/syscall/syscall.csv b/syscall/syscall.csv
-index 6b23fcd604..2cf827df61 100644
+index 6b23fcd604..f343dbb5d4 100644
 --- a/syscall/syscall.csv
 +++ b/syscall/syscall.csv
-@@ -203,3 +203,15 @@
+@@ -1,5 +1,6 @@
+ "_assert","assert.h","","void","FAR const char *","int","FAR const char *","FAR void *"
+ "_exit","unistd.h","","noreturn","int"
++"accept","sys/socket.h","defined(CONFIG_NET)","int","int","FAR struct sockaddr *","FAR socklen_t *"
+ "accept4","sys/socket.h","defined(CONFIG_NET)","int","int","FAR struct sockaddr *","FAR socklen_t *","int"
+ "adjtime","sys/time.h","defined(CONFIG_CLOCK_TIMEKEEPING)","int","FAR const struct timeval *","FAR struct timeval *"
+ "aio_cancel","aio.h","defined(CONFIG_FS_AIO)","int","int","FAR struct aiocb *"
+@@ -203,3 +204,54 @@
  "waitid","sys/wait.h","defined(CONFIG_SCHED_WAITPID) && defined(CONFIG_SCHED_HAVE_PARENT)","int","idtype_t","id_t"," FAR siginfo_t *","int"
  "waitpid","sys/wait.h","defined(CONFIG_SCHED_WAITPID)","pid_t","pid_t","FAR int *","int"
  "write","unistd.h","","ssize_t","int","FAR const void *","size_t"
++"dhcpd_run","../../apps/include/netutils/dhcpd.h","","int","FAR const char *"
++"dhcpd_start","../../apps/include/netutils/dhcpd.h","","int","FAR const char *"
++"dhcpd_stop","../../apps/include/netutils/dhcpd.h","","int","void"
++"dhcpd_set_startip","../../apps/include/netutils/dhcpd.h","","int","in_addr_t"
++"dhcpd_set_routerip","../../apps/include/netutils/dhcpd.h","","int","in_addr_t"
++"dhcpd_set_netmask","../../apps/include/netutils/dhcpd.h","","int","in_addr_t"
++"dhcpd_set_dnsip","../../apps/include/netutils/dhcpd.h","","int","in_addr_t"
++"httpd_open","../../apps/netutils/webserver/httpd.h","","int","const char *","struct httpd_fs_file *"
++"httpd_openindex","../../apps/netutils/webserver/httpd.h","","int","struct httpd_state *"
++"httpd_close","../../apps/netutils/webserver/httpd.h","","int","struct httpd_fs_file *"
++"httpd_senderror","../../apps/netutils/webserver/httpd.h","","int","struct httpd_state *","int"
++"httpd_sendfile","../../apps/netutils/webserver/httpd.h","","int","struct httpd_state *"
++"httpd_parse","../../apps/netutils/webserver/httpd.h","","int","struct httpd_state *"
++"httpd_send_datachunk","../../apps/netutils/webserver/httpd.h","","int","int","void *","int","bool"
++"httpd_send_headers","../../apps/netutils/webserver/httpd.h","","int","struct httpd_state *","int","int"
++"mqtt_init","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *","mqtt_pal_socket_handle","uint8_t *","size_t","uint8_t *","size_t","void (*)(void **, struct mqtt_response_publish *)"
++"mqtt_init_reconnect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","void","struct mqtt_client *","void (*)(struct mqtt_client *, void **)","void *","void (*)(void **, struct mqtt_response_publish *)"
++"mqtt_connect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *","const char *","const char *","const void *","size_t","const char*","const char*","uint8_t","uint16_t"
++"mqtt_publish","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *","const char *","const void *","size_t","uint8_t"
++"mqtt_subscribe","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *","const char *","int"
++"mqtt_unsubscribe","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *","const char *"
++"mqtt_disconnect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *"
++"mqtt_reconnect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *"
++"netlib_setmacaddr","../../apps/include/netutils/netlib.h","","int","FAR const char *","FAR const uint8_t *"
++"netlib_getmacaddr","../../apps/include/netutils/netlib.h","","int","FAR const char *","FAR uint8_t *"
++"sslutil_webclient_tlsops","../arch/risc-v/src/common/espressif/sslutil.h","","struct webclient_tls_ops *","void"
++"wapi_get_ifup","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","FAR int *"
++"wapi_set_ifup","../../apps/include/wireless/wapi.h","","int","int","FAR const char *"
++"wapi_set_ifdown","../../apps/include/wireless/wapi.h","","int","int","FAR const char *"
++"wapi_get_ip","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","struct in_addr *"
++"wapi_set_ip","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","FAR const struct in_addr *"
++"wapi_get_netmask","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","FAR struct in_addr *"
++"wapi_set_netmask","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","FAR const struct in_addr *"
++"wapi_get_essid","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","FAR char *","FAR enum wapi_essid_flag_e *"
++"wapi_set_essid","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","FAR const char *","enum wapi_essid_flag_e"
++"wapi_get_mode","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","FAR enum wapi_mode_e *"
++"wapi_set_mode","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","enum wapi_mode_e"
++"wapi_get_ap","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","FAR struct ether_addr *"
++"wapi_set_ap","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","FAR const struct ether_addr *"
++"wapi_make_socket","../../apps/include/wireless/wapi.h","","int","void"
++"wapi_get_sensitivity","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","FAR int *"
++"wapi_load_config","../../apps/include/wireless/wapi.h","","FAR void *","FAR const char *","FAR const char *","FAR struct wpa_wconfig_s *"
++"wapi_unload_config","../../apps/include/wireless/wapi.h","","void","FAR void *"
++"wapi_save_config","../../apps/include/wireless/wapi.h","","int","FAR const char *","FAR const char *","FAR const struct wpa_wconfig_s *"
++"wpa_driver_wext_set_key_ext","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","enum wpa_alg_e","FAR const char *","size_t"
++"wpa_driver_wext_get_key_ext","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","enum wpa_alg_e *","FAR char *","size_t *"
++"wpa_driver_wext_set_auth_param","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","int","uint32_t"
++"wpa_driver_wext_get_auth_param","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","int","uint32_t *"
 +"webclient_set_defaults","../../apps/include/netutils/webclient.h","","void","FAR struct webclient_context *"
 +"webclient_perform","../../apps/include/netutils/webclient.h","","int","FAR struct webclient_context *"
 +"webclient_abort","../../apps/include/netutils/webclient.h","","void","FAR struct webclient_context *"
-+"mqtt_init","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *, mqtt_pal_socket_handle, uint8_t *, size_t, uint8_t *, size_t, void (*)(void **, struct mqtt_response_publish *)"
-+"mqtt_init_reconnect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","void","struct mqtt_client *, void (*)(struct mqtt_client *, void **), void *, void (*)(void **, struct mqtt_response_publish *)"
-+"mqtt_connect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *, const char *, const char *, const void *, size_t, const char*, const char*, uint8_t, uint16_t"
-+"mqtt_publish","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *, const char *, const void *, size_t, uint8_t"
-+"mqtt_subscribe","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *, const char *, int"
-+"mqtt_unsubscribe","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *, const char *"
-+"mqtt_disconnect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *"
-+"mqtt_reconnect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *"
-+"sslutil_webclient_tlsops","../arch/risc-v/src/common/espressif/sslutil.h","","struct webclient_tls_ops *","void"

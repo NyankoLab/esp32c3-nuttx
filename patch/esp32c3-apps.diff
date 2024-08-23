@@ -32,7 +32,7 @@ index 01c49c0f7..8c1f259a4 100644
   
       /** @brief The sending message queue. */
 diff --git a/netutils/webserver/httpd.c b/netutils/webserver/httpd.c
-index 4602e65e9..d06064b2d 100644
+index 4602e65e9..8e8c9fb6f 100644
 --- a/netutils/webserver/httpd.c
 +++ b/netutils/webserver/httpd.c
 @@ -139,7 +139,7 @@
@@ -88,6 +88,33 @@ index 4602e65e9..d06064b2d 100644
 +int httpd_parse(struct httpd_state *pstate)
  {
    char *o;
+ 
+@@ -975,6 +975,10 @@ int httpd_send_headers(struct httpd_state *pstate, int status, int len)
+       "jpg",   "image/jpeg"
+     },
+ 
++    {
++      "svg",   "image/svg+xml"
++    },
++
+     {
+       "mp3",   "audio/mpeg"
+     },
+@@ -1048,6 +1052,7 @@ int httpd_send_headers(struct httpd_state *pstate, int status, int len)
+                     "Connection: %s\r\n"
+                     "Content-type: %s\r\n"
+                     "%s"
++                    "%s"
+                     "\r\n",
+                     status,
+                     status >= 400 ? "Error" : "OK",
+@@ -1057,6 +1062,7 @@ int httpd_send_headers(struct httpd_state *pstate, int status, int len)
+                     "close",
+ #endif
+                     mime,
++                    strstr(mime, "image") ? "Cache-Control: max-age=86400\r\n" : "",
+                     contentlen
+                     );
  
 diff --git a/netutils/webserver/httpd.h b/netutils/webserver/httpd.h
 index 0a28fce12..fd92b2e34 100644

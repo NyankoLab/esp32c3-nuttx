@@ -466,7 +466,7 @@ index 8e826bddc5..ba43a6617b 100644
          break;
        case R_RISCV_32_PCREL:
 diff --git a/syscall/syscall.csv b/syscall/syscall.csv
-index 6b23fcd604..47eb13d1de 100644
+index 6b23fcd604..17ba77d599 100644
 --- a/syscall/syscall.csv
 +++ b/syscall/syscall.csv
 @@ -1,5 +1,6 @@
@@ -484,7 +484,15 @@ index 6b23fcd604..47eb13d1de 100644
  "mkdir","sys/stat.h","!defined(CONFIG_DISABLE_MOUNTPOINT)","int","FAR const char *","mode_t"
  "mmap","sys/mman.h","","FAR void *","FAR void *","size_t","int","int","int","off_t"
  "modhandle","nuttx/module.h","defined(CONFIG_MODULE)","FAR void *","FAR const char *"
-@@ -199,7 +207,62 @@
+@@ -180,6 +188,7 @@
+ "symlink","unistd.h","defined(CONFIG_PSEUDOFS_SOFTLINKS)","int","FAR const char *","FAR const char *"
+ "sync","unistd.h","","void"
+ "sysinfo","sys/sysinfo.h","","int","FAR struct sysinfo *"
++"system","stdlib.h","","int","FAR const char *"
+ "task_create","sched.h","!defined(CONFIG_BUILD_KERNEL)", "int","FAR const char *","int","int","main_t","FAR char * const []|FAR char * const *"
+ "task_delete","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
+ "task_restart","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
+@@ -199,7 +208,62 @@
  "unsetenv","stdlib.h","!defined(CONFIG_DISABLE_ENVIRON)","int","FAR const char *"
  "up_fork","nuttx/arch.h","defined(CONFIG_ARCH_HAVE_FORK)","pid_t"
  "utimens","sys/stat.h","","int","FAR const char *","const struct timespec [2]|FAR const struct timespec *"

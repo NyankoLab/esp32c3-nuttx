@@ -80,18 +80,6 @@ index e2e627ca9f..54b7e0874e 100644
  ### Define Espressif's configs for mbedTLS
  
  CFLAGS += $(DEFINE_PREFIX)MBEDTLS_CONFIG_FILE="<mbedtls/esp_config.h>"
-diff --git a/arch/risc-v/src/common/espressif/esp_serial.c b/arch/risc-v/src/common/espressif/esp_serial.c
-index 51c022c960..56e78ed1c3 100644
---- a/arch/risc-v/src/common/espressif/esp_serial.c
-+++ b/arch/risc-v/src/common/espressif/esp_serial.c
-@@ -99,6 +99,7 @@
- #endif /* CONSOLE_UART */
- 
- #ifdef CONFIG_ESPRESSIF_USBSERIAL
-+#  undef  CONSOLE_DEV
- #  define CONSOLE_DEV           g_uart_usbserial
- #  define TTYACM0_DEV           g_uart_usbserial
- #endif
 diff --git a/arch/risc-v/src/common/espressif/esp_wifi_utils.h b/arch/risc-v/src/common/espressif/esp_wifi_utils.h
 index 738fbbed08..17914d9554 100644
 --- a/arch/risc-v/src/common/espressif/esp_wifi_utils.h
@@ -324,7 +312,7 @@ index 3623e7ff62..04f50a06e6 100644
  "setlogmask","syslog.h","","int","int"
  "setpriority","sys/resource.h","","int","int","id_t","int"
 diff --git a/libs/libc/machine/risc-v/arch_elf.c b/libs/libc/machine/risc-v/arch_elf.c
-index 8e826bddc5..ba43a6617b 100644
+index 8e826bddc5..43ee769719 100644
 --- a/libs/libc/machine/risc-v/arch_elf.c
 +++ b/libs/libc/machine/risc-v/arch_elf.c
 @@ -78,6 +78,7 @@ static struct rname_code_s _rname_table[] =
@@ -335,10 +323,18 @@ index 8e826bddc5..ba43a6617b 100644
    {"RVC_JUMP", R_RISCV_RVC_JUMP},
    {"RVC_BRANCH", R_RISCV_RVC_BRANCH},
    {"32_PCREL", R_RISCV_32_PCREL},
-@@ -104,6 +105,11 @@ static const char *_get_rname(int type)
+@@ -104,6 +105,19 @@ static const char *_get_rname(int type)
    return "?????";
  }
  
++/****************************************************************************
++ * Name: _extract_bits
++ *
++ * Description:
++ *   Copied from ELF_riscv.cpp (LLVM)
++ *
++ ****************************************************************************/
++
 +static uint32_t _extract_bits(uint32_t num, int low, int size)
 +{
 +  return (num & (((1 << size) - 1) << low)) >> low;
@@ -347,7 +343,7 @@ index 8e826bddc5..ba43a6617b 100644
  /****************************************************************************
   * Name: _get_val, set_val, _add_val
   *
-@@ -394,7 +400,7 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
+@@ -394,7 +408,7 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
  
    relotype = ELF_R_TYPE(rel->r_info);
  
@@ -356,7 +352,7 @@ index 8e826bddc5..ba43a6617b 100644
      {
        /* NOTE: RELAX has no symbol, so just return */
  
-@@ -561,12 +567,21 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
+@@ -561,12 +575,21 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
            uint32_t val = _get_val((uint16_t *)addr) & 0xfe000f80;
  
            /* NOTE: we assume that a compiler adds an immediate value */
@@ -383,7 +379,7 @@ index 8e826bddc5..ba43a6617b 100644
          }
          break;
  
-@@ -583,13 +598,22 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
+@@ -583,13 +606,22 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
            offset = (long)sym->st_value + (long)rel->r_addend - (long)addr;
            uint32_t val = _get_val((uint16_t *)addr) & 0xfffff000;
  
@@ -411,7 +407,7 @@ index 8e826bddc5..ba43a6617b 100644
          }
          break;
  
-@@ -692,8 +716,25 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
+@@ -692,8 +724,25 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
  
            uint16_t val = (*(uint16_t *)addr) & 0x1ffc;
  
@@ -439,7 +435,7 @@ index 8e826bddc5..ba43a6617b 100644
          }
          break;
  
-@@ -713,11 +754,21 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
+@@ -713,11 +762,21 @@ int up_relocateadd(const Elf_Rela *rel, const Elf_Sym *sym,
            uint16_t val = (*(uint16_t *)addr) & 0x1c7c;
  
            /* NOTE: we assume that a compiler adds an immediate value */
@@ -466,7 +462,7 @@ index 8e826bddc5..ba43a6617b 100644
          break;
        case R_RISCV_32_PCREL:
 diff --git a/syscall/syscall.csv b/syscall/syscall.csv
-index 6b23fcd604..17ba77d599 100644
+index 6b23fcd604..99de87b047 100644
 --- a/syscall/syscall.csv
 +++ b/syscall/syscall.csv
 @@ -1,5 +1,6 @@
@@ -476,7 +472,7 @@ index 6b23fcd604..17ba77d599 100644
  "accept4","sys/socket.h","defined(CONFIG_NET)","int","int","FAR struct sockaddr *","FAR socklen_t *","int"
  "adjtime","sys/time.h","defined(CONFIG_CLOCK_TIMEKEEPING)","int","FAR const struct timeval *","FAR struct timeval *"
  "aio_cancel","aio.h","defined(CONFIG_FS_AIO)","int","int","FAR struct aiocb *"
-@@ -60,6 +61,7 @@
+@@ -60,6 +67,7 @@
  "lseek","unistd.h","","off_t","int","off_t","int"
  "lstat","sys/stat.h","","int","FAR const char *","FAR struct stat *"
  "lutimens","sys/stat.h","","int","FAR const char *","const struct timespec [2]|FAR const struct timespec *"
@@ -492,7 +488,7 @@ index 6b23fcd604..17ba77d599 100644
  "task_create","sched.h","!defined(CONFIG_BUILD_KERNEL)", "int","FAR const char *","int","int","main_t","FAR char * const []|FAR char * const *"
  "task_delete","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
  "task_restart","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
-@@ -199,7 +208,62 @@
+@@ -199,7 +208,67 @@
  "unsetenv","stdlib.h","!defined(CONFIG_DISABLE_ENVIRON)","int","FAR const char *"
  "up_fork","nuttx/arch.h","defined(CONFIG_ARCH_HAVE_FORK)","pid_t"
  "utimens","sys/stat.h","","int","FAR const char *","const struct timespec [2]|FAR const struct timespec *"
@@ -501,6 +497,11 @@ index 6b23fcd604..17ba77d599 100644
  "waitid","sys/wait.h","defined(CONFIG_SCHED_WAITPID) && defined(CONFIG_SCHED_HAVE_PARENT)","int","idtype_t","id_t"," FAR siginfo_t *","int"
  "waitpid","sys/wait.h","defined(CONFIG_SCHED_WAITPID)","pid_t","pid_t","FAR int *","int"
  "write","unistd.h","","ssize_t","int","FAR const void *","size_t"
++"dhcpc_open","../../apps/include/netutils/dhcpc.h","","FAR void *","FAR const char *, FAR const void *, int"
++"dhcpc_request","../../apps/include/netutils/dhcpc.h","","int","FAR void *, FAR struct dhcpc_state *"
++"dhcpc_request_async","../../apps/include/netutils/dhcpc.h","","int","FAR void *, dhcpc_callback_t"
++"dhcpc_cancel","../../apps/include/netutils/dhcpc.h","","void","FAR void *"
++"dhcpc_close","../../apps/include/netutils/dhcpc.h","","void","FAR void *"
 +"dhcpd_run","../../apps/include/netutils/dhcpd.h","","int","FAR const char *"
 +"dhcpd_start","../../apps/include/netutils/dhcpd.h","","int","FAR const char *"
 +"dhcpd_stop","../../apps/include/netutils/dhcpd.h","","int","void"

@@ -30,7 +30,7 @@ git apply ../patch/esp32c3-apps.diff
 cd ..
 
 cd nuttx
-./tools/configure.sh esp32c3-generic:wifi
+./tools/configure.sh esp32c3-generic:sta_softap
 cat ../esp32c3.conf >> .config
 git apply ../patch/esp32c3-nuttx.diff
 cp ../patch/mbedtls_sslutils.c arch/risc-v/src/common/espressif

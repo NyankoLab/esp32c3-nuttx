@@ -30,7 +30,7 @@ git apply ../patch/esp32c3-apps.diff
 mkdir -p netutils/mdns
 cd netutils/mdns
 cp ../../../patch/mdns/* .
-cp ../../../patch/mdns/include/* ../../include/netutils
+cp ../../../patch/mdns/include/mdnsd.h ../../include/netutils
 cd ../..
 cd ..
 

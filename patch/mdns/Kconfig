@@ -6,7 +6,7 @@
 config NETUTILS_MDNS
 	bool "Multicast DNS"
 	default n
-	depends on PIPES
+	select PIPES
 	---help---
 		Enables support for Multicast DNS. The multicast Domain Name System (mDNS)
 		resolves host names to IP addresses within small networks that do not include

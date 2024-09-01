@@ -26,3 +26,5 @@
 - [x] Hardware AES
 - [ ] Hardware MPI
 - [x] Hardware SHA
+- [x] HTTP with SSL (Sony)
+- [x] mDNS (Samsung)

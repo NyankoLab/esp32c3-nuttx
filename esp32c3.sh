@@ -27,6 +27,11 @@ ln -s ${ESP_GCC_PATH}/riscv32-esp-elf-strip ${ESP_GCC_PATH}/riscv64-unknown-elf-
 
 cd apps
 git apply ../patch/esp32c3-apps.diff
+mkdir -p netutils/mdns
+cd netutils/mdns
+cp ../../../patch/mdns/* .
+cp ../../../patch/mdns/include/* ../../include/netutils
+cd ../..
 cd ..
 
 cd nuttx

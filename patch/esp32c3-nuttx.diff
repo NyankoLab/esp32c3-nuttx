@@ -462,7 +462,7 @@ index 8e826bddc5..43ee769719 100644
          break;
        case R_RISCV_32_PCREL:
 diff --git a/syscall/syscall.csv b/syscall/syscall.csv
-index 6b23fcd604..99de87b047 100644
+index 6b23fcd604..cd29f847e2 100644
 --- a/syscall/syscall.csv
 +++ b/syscall/syscall.csv
 @@ -1,5 +1,6 @@
@@ -488,7 +488,7 @@ index 6b23fcd604..99de87b047 100644
  "task_create","sched.h","!defined(CONFIG_BUILD_KERNEL)", "int","FAR const char *","int","int","main_t","FAR char * const []|FAR char * const *"
  "task_delete","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
  "task_restart","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
-@@ -199,7 +208,67 @@
+@@ -199,7 +208,73 @@
  "unsetenv","stdlib.h","!defined(CONFIG_DISABLE_ENVIRON)","int","FAR const char *"
  "up_fork","nuttx/arch.h","defined(CONFIG_ARCH_HAVE_FORK)","pid_t"
  "utimens","sys/stat.h","","int","FAR const char *","const struct timespec [2]|FAR const struct timespec *"
@@ -517,6 +517,12 @@ index 6b23fcd604..99de87b047 100644
 +"httpd_parse","../../apps/netutils/webserver/httpd.h","","int","struct httpd_state *"
 +"httpd_send_datachunk","../../apps/netutils/webserver/httpd.h","","int","int","void *","int","bool"
 +"httpd_send_headers","../../apps/netutils/webserver/httpd.h","","int","struct httpd_state *","int","int"
++"mdnsd_start","../../apps/include/netutils/mdnsd.h","defined(CONFIG_NETUTILS_MDNS_RESPONDER_SUPPORT)","int","const char *, const char *"
++"mdnsd_stop","../../apps/include/netutils/mdnsd.h","defined(CONFIG_NETUTILS_MDNS_RESPONDER_SUPPORT)","int","void"
++"mdnsd_get_hostname","../../apps/include/netutils/mdnsd.h","defined(CONFIG_NETUTILS_MDNS_RESPONDER_SUPPORT)","int","char *"
++"mdnsd_register_service","../../apps/include/netutils/mdnsd.h","defined(CONFIG_NETUTILS_MDNS_RESPONDER_SUPPORT)","int","const char *, const char *, uint16_t, const char *, const char *[]"
++"mdnsd_resolve_hostname","../../apps/include/netutils/mdnsd.h","","int","char *, int *"
++"mdnsd_discover_service","../../apps/include/netutils/mdnsd.h","","int","char *, int, struct mdns_service_info **, int *"
 +"mqtt_sync","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *"
 +"mqtt_init","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *","mqtt_pal_socket_handle","uint8_t *","size_t","uint8_t *","size_t","void (*)(void **, struct mqtt_response_publish *)"
 +"mqtt_init_reconnect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","void","struct mqtt_client *","void (*)(struct mqtt_client *, void **)","void *","void (*)(void **, struct mqtt_response_publish *)"

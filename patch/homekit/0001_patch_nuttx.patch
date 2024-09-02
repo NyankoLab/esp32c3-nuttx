@@ -1,0 +1,739 @@
+diff --git a/HAP/HAP.h b/HAP/HAP.h
+index 89f40a1..43a1bc6 100644
+--- a/HAP/HAP.h
++++ b/HAP/HAP.h
+@@ -11,7 +11,7 @@
+ extern "C" {
+ #endif
+ 
+-#include "HAPPlatform.h"
++#include "../PAL/HAPPlatform.h"
+ 
+ #if __has_feature(nullability)
+ #pragma clang assume_nonnull begin
+diff --git a/PAL/Crypto/MbedTLS/HAPMbedTLS.c b/PAL/Crypto/MbedTLS/HAPMbedTLS.c
+index 85a6926..cf5271c 100644
+--- a/PAL/Crypto/MbedTLS/HAPMbedTLS.c
++++ b/PAL/Crypto/MbedTLS/HAPMbedTLS.c
+@@ -22,19 +22,86 @@
+ #include "mbedtls/ecdh.h"
+ #include "mbedtls/bignum.h"
+ 
++#define mbedtls_aes_crypt_ctr           esp_mbedtls_aes_crypt_ctr
++#define mbedtls_aes_free                esp_mbedtls_aes_free
++#define mbedtls_aes_init                esp_mbedtls_aes_init
++#define mbedtls_aes_setkey_enc          esp_mbedtls_aes_setkey_enc
++
++#define mbedtls_chachapoly_init         esp_mbedtls_chachapoly_init
++#define mbedtls_chachapoly_finish       esp_mbedtls_chachapoly_finish
++#define mbedtls_chachapoly_free         esp_mbedtls_chachapoly_free
++#define mbedtls_chachapoly_setkey       esp_mbedtls_chachapoly_setkey
++#define mbedtls_chachapoly_starts       esp_mbedtls_chachapoly_starts
++#define mbedtls_chachapoly_update       esp_mbedtls_chachapoly_update
++#define mbedtls_chachapoly_update_aad   esp_mbedtls_chachapoly_update_aad
++
++#define mbedtls_ecp_group_load          esp_mbedtls_ecp_group_load
++#define mbedtls_ecp_keypair_init        esp_mbedtls_ecp_keypair_init
++#define mbedtls_ecp_keypair_free        esp_mbedtls_ecp_keypair_free
++#define mbedtls_ecp_mul                 esp_mbedtls_ecp_mul
++#define mbedtls_ecp_point_read_binary   esp_mbedtls_ecp_point_read_binary
++#define mbedtls_ecp_point_write_binary  esp_mbedtls_ecp_point_write_binary
++#define mbedtls_ecp_read_key            esp_mbedtls_ecp_read_key
++
++#define mbedtls_ecdh_calc_secret        esp_mbedtls_ecdh_calc_secret
++#define mbedtls_ecdh_free               esp_mbedtls_ecdh_free
++#define mbedtls_ecdh_init               esp_mbedtls_ecdh_init
++#define mbedtls_ecdh_get_params         esp_mbedtls_ecdh_get_params
++
++#define mbedtls_hkdf                    esp_mbedtls_hkdf
++
++#define mbedtls_md_free                 esp_mbedtls_md_free
++#define mbedtls_md_info_from_type       esp_mbedtls_md_info_from_type
++#define mbedtls_md_init                 esp_mbedtls_md_init
++#define mbedtls_md_hmac_finish          esp_mbedtls_md_hmac_finish
++#define mbedtls_md_hmac_starts          esp_mbedtls_md_hmac_starts
++#define mbedtls_md_hmac_update          esp_mbedtls_md_hmac_update
++#define mbedtls_md_setup                esp_mbedtls_md_setup
++#define mbedtls_md_starts               esp_mbedtls_md_starts
++
++#define mbedtls_mpi_add_mpi             esp_mbedtls_mpi_add_mpi
++#define mbedtls_mpi_cmp_int             esp_mbedtls_mpi_cmp_int
++#define mbedtls_mpi_exp_mod             esp_mbedtls_mpi_exp_mod
++#define mbedtls_mpi_init                esp_mbedtls_mpi_init
++#define mbedtls_mpi_free                esp_mbedtls_mpi_free
++#define mbedtls_mpi_mod_mpi             esp_mbedtls_mpi_mod_mpi
++#define mbedtls_mpi_mul_mpi             esp_mbedtls_mpi_mul_mpi
++#define mbedtls_mpi_read_binary         esp_mbedtls_mpi_read_binary
++#define mbedtls_mpi_write_binary        esp_mbedtls_mpi_write_binary
++
++#define mbedtls_pkcs5_pbkdf2_hmac       esp_mbedtls_pkcs5_pbkdf2_hmac
++
++#define mbedtls_sha1_finish             esp_mbedtls_sha1_finish
++#define mbedtls_sha1_free               esp_mbedtls_sha1_free
++#define mbedtls_sha1_init               esp_mbedtls_sha1_init
++#define mbedtls_sha1_starts             esp_mbedtls_sha1_starts
++#define mbedtls_sha1_update             esp_mbedtls_sha1_update
++
++#define mbedtls_sha256_finish           esp_mbedtls_sha256_finish
++#define mbedtls_sha256_free             esp_mbedtls_sha256_free
++#define mbedtls_sha256_init             esp_mbedtls_sha256_init
++#define mbedtls_sha256_starts           esp_mbedtls_sha256_starts
++#define mbedtls_sha256_update           esp_mbedtls_sha256_update
++
++#define mbedtls_sha512_finish           esp_mbedtls_sha512_finish
++#define mbedtls_sha512_free             esp_mbedtls_sha512_free
++#define mbedtls_sha512_init             esp_mbedtls_sha512_init
++#define mbedtls_sha512_starts           esp_mbedtls_sha512_starts
++#define mbedtls_sha512_update           esp_mbedtls_sha512_update
++
+ static void sha512_init(mbedtls_sha512_context* ctx) {
+     mbedtls_sha512_init(ctx);
+-    int ret = mbedtls_sha512_starts_ret(ctx, 0);
++    int ret = mbedtls_sha512_starts(ctx, 0);
+     HAPAssert(ret == 0);
+ }
+ 
+ static void sha512_update(mbedtls_sha512_context* ctx, const uint8_t* data, size_t size) {
+-    int ret = mbedtls_sha512_update_ret(ctx, data, size);
++    int ret = mbedtls_sha512_update(ctx, data, size);
+     HAPAssert(ret == 0);
+ }
+ 
+ static void sha512_final(mbedtls_sha512_context* ctx, uint8_t md[SHA512_BYTES]) {
+-    int ret = mbedtls_sha512_finish_ret(ctx, md);
++    int ret = mbedtls_sha512_finish(ctx, md);
+     HAPAssert(ret == 0);
+     mbedtls_sha512_free(ctx);
+ }
+@@ -119,9 +186,9 @@ void HAP_X25519_scalarmult(
+         int ret = mbedtls_ecp_read_key(MBEDTLS_ECP_DP_CURVE25519, &our_key, n, X25519_SCALAR_BYTES);
+         HAPAssert(ret == 0);
+         WITH_ECP_KEYPAIR(their_key, {
+-            ret = mbedtls_ecp_group_load(&their_key.grp, MBEDTLS_ECP_DP_CURVE25519);
++            ret = mbedtls_ecp_group_load(&their_key.MBEDTLS_PRIVATE(grp), MBEDTLS_ECP_DP_CURVE25519);
+             HAPAssert(ret == 0);
+-            ret = mbedtls_ecp_point_read_binary(&their_key.grp, &their_key.Q, p, X25519_BYTES);
++            ret = mbedtls_ecp_point_read_binary(&their_key.MBEDTLS_PRIVATE(grp), &their_key.MBEDTLS_PRIVATE(Q), p, X25519_BYTES);
+             HAPAssert(ret == 0);
+             WITH_ECDH(ecdh, {
+                 ret = mbedtls_ecdh_get_params(&ecdh, &their_key, MBEDTLS_ECDH_THEIRS);
+@@ -141,10 +208,10 @@ void HAP_X25519_scalarmult_base(uint8_t r[X25519_BYTES], const uint8_t n[X25519_
+     WITH_ECP_KEYPAIR(key, {
+         int ret = mbedtls_ecp_read_key(MBEDTLS_ECP_DP_CURVE25519, &key, n, X25519_SCALAR_BYTES);
+         HAPAssert(ret == 0);
+-        ret = mbedtls_ecp_mul(&key.grp, &key.Q, &key.d, &key.grp.G, blinding_rng, NULL);
++        ret = mbedtls_ecp_mul(&key.MBEDTLS_PRIVATE(grp), &key.MBEDTLS_PRIVATE(Q), &key.MBEDTLS_PRIVATE(d), &key.MBEDTLS_PRIVATE(grp).G, blinding_rng, NULL);
+         HAPAssert(ret == 0);
+         size_t out_len;
+-        ret = mbedtls_ecp_point_write_binary(&key.grp, &key.Q, MBEDTLS_ECP_PF_UNCOMPRESSED, &out_len, r, X25519_BYTES);
++        ret = mbedtls_ecp_point_write_binary(&key.MBEDTLS_PRIVATE(grp), &key.MBEDTLS_PRIVATE(Q), MBEDTLS_ECP_PF_UNCOMPRESSED, &out_len, r, X25519_BYTES);
+         HAPAssert(ret == 0);
+         HAPAssert(out_len == X25519_BYTES);
+     });
+@@ -428,11 +495,11 @@ void HAP_srp_proof_m2(
+ void HAP_sha1(uint8_t md[SHA1_BYTES], const uint8_t* data, size_t size) {
+     mbedtls_sha1_context ctx;
+     mbedtls_sha1_init(&ctx);
+-    int ret = mbedtls_sha1_starts_ret(&ctx);
++    int ret = mbedtls_sha1_starts(&ctx);
+     HAPAssert(ret == 0);
+-    ret = mbedtls_sha1_update_ret(&ctx, data, size);
++    ret = mbedtls_sha1_update(&ctx, data, size);
+     HAPAssert(ret == 0);
+-    ret = mbedtls_sha1_finish_ret(&ctx, md);
++    ret = mbedtls_sha1_finish(&ctx, md);
+     HAPAssert(ret == 0);
+     mbedtls_sha1_free(&ctx);
+ }
+@@ -440,11 +507,11 @@ void HAP_sha1(uint8_t md[SHA1_BYTES], const uint8_t* data, size_t size) {
+ void HAP_sha256(uint8_t md[SHA256_BYTES], const uint8_t* data, size_t size) {
+     mbedtls_sha256_context ctx;
+     mbedtls_sha256_init(&ctx);
+-    int ret = mbedtls_sha256_starts_ret(&ctx, 0);
++    int ret = mbedtls_sha256_starts(&ctx, 0);
+     HAPAssert(ret == 0);
+-    ret = mbedtls_sha256_update_ret(&ctx, data, size);
++    ret = mbedtls_sha256_update(&ctx, data, size);
+     HAPAssert(ret == 0);
+-    ret = mbedtls_sha256_finish_ret(&ctx, md);
++    ret = mbedtls_sha256_finish(&ctx, md);
+     HAPAssert(ret == 0);
+     mbedtls_sha256_free(&ctx);
+ }
+diff --git a/PAL/POSIX/HAPPlatform.c b/PAL/POSIX/HAPPlatform.c
+index 07bdfa2..f5ef770 100644
+--- a/PAL/POSIX/HAPPlatform.c
++++ b/PAL/POSIX/HAPPlatform.c
+@@ -11,7 +11,7 @@
+ 
+ static struct utsname* sysinfo = NULL;
+ 
+-static struct utsname* SystemInfo() {
++static struct utsname* SystemInfo(void) {
+     if (!sysinfo) {
+         sysinfo = (struct utsname*) malloc(sizeof(struct utsname));
+         int ret = uname(sysinfo);
+diff --git a/PAL/POSIX/HAPPlatformAccessorySetupDisplay.c b/PAL/POSIX/HAPPlatformAccessorySetupDisplay.c
+index bbc7c22..c90076b 100644
+--- a/PAL/POSIX/HAPPlatformAccessorySetupDisplay.c
++++ b/PAL/POSIX/HAPPlatformAccessorySetupDisplay.c
+@@ -17,42 +17,6 @@
+ 
+ static const HAPLogObject logObject = { .subsystem = kHAPPlatform_LogSubsystem, .category = "AccessorySetupDisplay" };
+ 
+-static void DisplayQRCode(HAPPlatformAccessorySetupDisplayRef setupDisplay) {
+-    HAPPrecondition(setupDisplay);
+-    HAPPrecondition(setupDisplay->setupPayloadIsSet);
+-    HAPPrecondition(setupDisplay->setupCodeIsSet);
+-
+-    HAPError err;
+-
+-    HAPLogInfo(
+-            &logObject,
+-            "%s: Launching 'qrencode' to display QR code with setup code: %s.",
+-            __func__,
+-            setupDisplay->setupCode.stringValue);
+-
+-    HAPSetupPayload setupPayload;
+-    HAPRawBufferCopyBytes(&setupPayload, &setupDisplay->setupPayload, sizeof setupPayload);
+-
+-    char* const cmd[] = { "/usr/bin/env", "qrencode", "-t", "ANSI256", setupPayload.stringValue, NULL };
+-
+-    char bytes[4800];
+-    size_t numBytes;
+-    extern char** environ; // declared by unistd.h
+-
+-    err = HAPPlatformSystemCommandRunWithEnvironment(cmd, environ, bytes, sizeof bytes - 1, &numBytes);
+-    bytes[numBytes] = '\0';
+-
+-    if (err == kHAPError_OutOfResources) {
+-        HAPLogError(&logObject, "%s: Displaying QR code failed: Buffer too small.", __func__);
+-        return;
+-    } else if (err) {
+-        printf("%s\n", bytes);
+-        HAPLogError(&logObject, "%s: Displaying QR code failed: 'qrencode' not installed.", __func__);
+-        return;
+-    }
+-    printf("\n%s\n", bytes);
+-}
+-
+ void HAPPlatformAccessorySetupDisplayCreate(HAPPlatformAccessorySetupDisplayRef setupDisplay) {
+     HAPPrecondition(HAVE_DISPLAY);
+     HAPPrecondition(setupDisplay);
+@@ -84,10 +48,6 @@ void HAPPlatformAccessorySetupDisplayUpdateSetupPayload(
+         HAPRawBufferZero(&setupDisplay->setupPayload, sizeof setupDisplay->setupPayload);
+         setupDisplay->setupPayloadIsSet = false;
+     }
+-
+-    if (setupDisplay->setupPayloadIsSet) {
+-        DisplayQRCode(setupDisplay);
+-    }
+ }
+ 
+ void HAPPlatformAccessorySetupDisplayHandleStartPairing(HAPPlatformAccessorySetupDisplayRef setupDisplay) {
+@@ -97,10 +57,6 @@ void HAPPlatformAccessorySetupDisplayHandleStartPairing(HAPPlatformAccessorySetu
+ 
+     HAPLogInfo(
+             &logObject, "##### Pairing attempt has started with setup code: %s.", setupDisplay->setupCode.stringValue);
+-
+-    if (setupDisplay->setupPayloadIsSet) {
+-        DisplayQRCode(setupDisplay);
+-    }
+ }
+ 
+ void HAPPlatformAccessorySetupDisplayHandleStopPairing(HAPPlatformAccessorySetupDisplayRef setupDisplay) {
+diff --git a/PAL/POSIX/HAPPlatformMFiHWAuth+Init.h b/PAL/POSIX/HAPPlatformMFiHWAuth+Init.h
+index 65819e7..c88897f 100644
+--- a/PAL/POSIX/HAPPlatformMFiHWAuth+Init.h
++++ b/PAL/POSIX/HAPPlatformMFiHWAuth+Init.h
+@@ -47,7 +47,6 @@ extern "C" {
+ struct HAPPlatformMFiHWAuth {
+     // Opaque type. Do not access the instance fields directly.
+     /**@cond */
+-    int i2cFile;
+     bool enabled;
+     /**@endcond */
+ };
+diff --git a/PAL/POSIX/HAPPlatformMFiHWAuth.c b/PAL/POSIX/HAPPlatformMFiHWAuth.c
+index 1db98c6..1c73933 100644
+--- a/PAL/POSIX/HAPPlatformMFiHWAuth.c
++++ b/PAL/POSIX/HAPPlatformMFiHWAuth.c
+@@ -4,80 +4,19 @@
+ // you may not use this file except in compliance with the License.
+ // See [CONTRIBUTORS.md] for the list of HomeKit ADK project authors.
+ 
+-#include <errno.h>
+-#include <fcntl.h>
+ #include <stdio.h>
+ #include <unistd.h>
+-#include <linux/i2c-dev.h>
+-#include <sys/ioctl.h>
+ 
+ #include "HAPPlatformMFiHWAuth+Init.h"
+ 
+ static const HAPLogObject logObject = { .subsystem = kHAPPlatform_LogSubsystem, .category = "MFiHWAuth" };
+ 
+-// MFi I2C Driver for Raspberry Pi
+-
+-// -------------------------------------------------
+-// To enable I2C on the Raspberry Pi:
+-// enable I2C in raspi-config
+-// or
+-// add "i2c-dev" to /etc/modules
+-// add "dtparam=i2c_arm=on" to /boot/config.txt
+-// -------------------------------------------------
+-
+-// See Accessory Interface Specification R30
+-// Section 64.5.3 Addressing
+-#define I2C_ADDRESS ((uint8_t) 0x10) // 7 bit address
+-
+-// Coprocessor 2.0C Address Selection
+-//
+-// RST State | I2C write address | I2C read address
+-// ------------------------------------------------
+-// 0         | 0x20              | 0x21
+-// 1         | 0x22              | 0x23
+-// -------------------------------------------------
+-
+-// Raspberry-Pi I2C Port
+-#define kHAPPlatformMFiHWAuth_I2CPort "/dev/i2c-1"
+-
+ void HAPPlatformMFiHWAuthCreate(HAPPlatformMFiHWAuthRef mfiHWAuth) {
+     HAPPrecondition(mfiHWAuth);
+-
+-    HAPLogDebug(&logObject, "%s", __func__);
+-
+-    HAPLogDebug(&logObject, "Storage configuration: mfiHWAuth = %lu", (unsigned long) sizeof *mfiHWAuth);
+-
+-    do {
+-        mfiHWAuth->i2cFile = open(kHAPPlatformMFiHWAuth_I2CPort, O_RDWR);
+-    } while (mfiHWAuth->i2cFile == -1 && errno == EINTR);
+-    if (mfiHWAuth->i2cFile < 0) {
+-        int _errno = errno;
+-        HAPAssert(mfiHWAuth->i2cFile == -1);
+-        HAPLogError(
+-                &logObject,
+-                "open %s failed: %d - i2c-dev installed and enabled?",
+-                kHAPPlatformMFiHWAuth_I2CPort,
+-                _errno);
+-        HAPFatalError();
+-    }
+-
+-    int e = ioctl(mfiHWAuth->i2cFile, I2C_SLAVE, I2C_ADDRESS);
+-    if (e < 0) {
+-        int _errno = errno;
+-        HAPAssert(e == -1);
+-        HAPLogError(&logObject, "i2c address set failed on %s: %d.", kHAPPlatformMFiHWAuth_I2CPort, _errno);
+-        HAPFatalError();
+-    }
+ }
+ 
+ void HAPPlatformMFiHWAuthRelease(HAPPlatformMFiHWAuthRef mfiHWAuth) {
+     HAPPrecondition(mfiHWAuth);
+-    HAPPrecondition(mfiHWAuth->i2cFile > -1);
+-
+-    HAPLogDebug(&logObject, "%s", __func__);
+-
+-    (void) close(mfiHWAuth->i2cFile);
+-    mfiHWAuth->i2cFile = 0;
+ }
+ 
+ HAP_RESULT_USE_CHECK
+@@ -109,17 +48,7 @@ HAPError HAPPlatformMFiHWAuthWrite(HAPPlatformMFiHWAuthRef mfiHWAuth, const void
+     HAPPrecondition(numBytes);
+ 
+     HAPLogBufferDebug(&logObject, bytes, numBytes, "MFi >");
+-    int repeat = 1000;
+-    while (--repeat >= 0) {
+-        ssize_t n = write(mfiHWAuth->i2cFile, bytes, numBytes);
+-        if (n == (ssize_t) numBytes) {
+-            HAPLogDebug(&logObject, "MFi write complete.");
+-            return kHAPError_None;
+-        }
+-        (void) usleep(500);
+-    }
+-    HAPLog(&logObject, "I2C write timed out.");
+-    return kHAPError_Unknown;
++    return kHAPError_None;
+ }
+ 
+ HAP_RESULT_USE_CHECK
+@@ -134,27 +63,5 @@ HAPError HAPPlatformMFiHWAuthRead(
+ 
+     HAPLogDebug(&logObject, "MFi read 0x%02x.", registerAddress);
+ 
+-    int repeat = 1000;
+-
+-    // Send register ID to read.
+-    while (--repeat >= 0) {
+-        ssize_t n = write(mfiHWAuth->i2cFile, &registerAddress, 1);
+-        if (n == 1) {
+-            break;
+-        }
+-        (void) usleep(500);
+-    }
+-
+-    // Send read request.
+-    while (--repeat >= 0) {
+-        ssize_t n = read(mfiHWAuth->i2cFile, bytes, numBytes);
+-        if (n == (ssize_t) numBytes) {
+-            HAPLogBufferDebug(&logObject, bytes, numBytes, "MFi < %02x", registerAddress);
+-            return kHAPError_None;
+-        }
+-        (void) usleep(500);
+-    }
+-
+-    HAPLog(&logObject, "I2C read timed out.");
+-    return kHAPError_Unknown;
++    return kHAPError_None;
+ }
+diff --git a/PAL/POSIX/HAPPlatformRandomNumber.c b/PAL/POSIX/HAPPlatformRandomNumber.c
+index cacf2d3..6af7d20 100644
+--- a/PAL/POSIX/HAPPlatformRandomNumber.c
++++ b/PAL/POSIX/HAPPlatformRandomNumber.c
+@@ -4,68 +4,20 @@
+ // you may not use this file except in compliance with the License.
+ // See [CONTRIBUTORS.md] for the list of HomeKit ADK project authors.
+ 
+-#include <errno.h>
+-#include <linux/random.h>
+-#include <syscall.h>
++#include <stdio.h>
+ #include <unistd.h>
+ 
+ #include "HAPPlatform.h"
+ 
+-/**
+- * Linux Random Number generator.
+- *
+- * This Random Number generator makes use of the Linux getrandom(2) interface.
+- * Please note that this interface is only supported from Linux 3.17 onwards.
+- *
+- * For more information see:
+- *  - LWN - The long road to getrandom() in glibc: https://lwn.net/Articles/711013/
+- *  - Getrandom Manpage: http://man7.org/linux/man-pages/man2/getrandom.2.html
+- */
+-
+-static const HAPLogObject logObject = { .subsystem = kHAPPlatform_LogSubsystem, .category = "RandomNumber" };
+-
+ void HAPPlatformRandomNumberFill(void* bytes, size_t numBytes) {
+     HAPPrecondition(bytes);
+ 
+-    // Read random data.
+-    for (int i = 0; i < 5; i++) {
+-        size_t o = 0;
+-        while (o < numBytes) {
+-            size_t c = numBytes - o;
+-
+-            // Using getrandom() to read small buffers (<= 256 bytes) from the urandom source is the preferred mode of
+-            // usage.
+-            // Source: man page of getrandom(2).
+-            if (c > 256) {
+-                c = 256;
+-            }
+-
+-            ssize_t n;
+-            do {
+-                // Flags to call getrandom.
+-                const int getrandomFlags = GRND_NONBLOCK; // Use the urandom source and do not block.
+-
+-                // With glibc >= 2.25 it is possible to call getrandom() directly.
+-                // Source: man page of getrandom(2).
+-                n = syscall(SYS_getrandom, &((uint8_t*) bytes)[o], c, getrandomFlags);
+-            } while ((n == -1) && (errno == EINTR));
+-
+-            if (n < 0) {
+-                int _errno = errno;
+-                HAPAssert(n == -1);
+-                HAPLogError(&logObject, "Read from getrandom failed: %d.", _errno);
+-                HAPFatalError();
+-            }
+-
+-            HAPAssert((size_t) n <= c);
+-            o += (size_t) n;
+-        }
+-
+-        // Verify random data.
+-        if (numBytes < 128 / 8 || !HAPRawBufferIsZero(bytes, numBytes)) {
+-            return;
+-        }
++    while (numBytes >= sizeof(long)) {
++        long value = random();
++        memcpy(bytes, &value, sizeof(long));
++        bytes = (char*)bytes + sizeof(long);
++        numBytes -= sizeof(long);
+     }
+-    HAPLogError(&logObject, "getrandom produced only zeros.");
+-    HAPFatalError();
++    long value = random();
++    memcpy(bytes, &value, numBytes);
+ }
+diff --git a/PAL/POSIX/HAPPlatformServiceDiscovery+Init.h b/PAL/POSIX/HAPPlatformServiceDiscovery+Init.h
+index 24e6bee..4effadc 100644
+--- a/PAL/POSIX/HAPPlatformServiceDiscovery+Init.h
++++ b/PAL/POSIX/HAPPlatformServiceDiscovery+Init.h
+@@ -11,7 +11,6 @@
+ extern "C" {
+ #endif
+ 
+-#include <dns_sd.h>
+ #include <net/if.h>
+ 
+ #include "HAPPlatform.h"
+@@ -52,11 +51,6 @@ typedef struct {
+     const char* _Nullable interfaceName;
+ } HAPPlatformServiceDiscoveryOptions;
+ 
+-/**
+- * Service discovery memory configuration value.
+- */
+-#define kHAPPlatformServiceDiscovery_MaxTXTRecordBufferBytes (512)
+-
+ /**
+  * Service discovery.
+  */
+@@ -64,11 +58,9 @@ struct HAPPlatformServiceDiscovery {
+     // Opaque type. Do not access the instance fields directly.
+     /**@cond */
+     char interfaceName[IFNAMSIZ];
+-
+-    DNSServiceRef dnsService;
+-    TXTRecordRef txtRecord;
+-    char txtRecordBuffer[kHAPPlatformServiceDiscovery_MaxTXTRecordBufferBytes];
+-    HAPPlatformFileHandleRef fileHandle;
++    char name[64];
++    char protocol[64];
++    HAPNetworkPort port;
+     /**@endcond */
+ };
+ 
+diff --git a/PAL/POSIX/HAPPlatformServiceDiscovery.c b/PAL/POSIX/HAPPlatformServiceDiscovery.c
+index 1d9e949..38cc723 100644
+--- a/PAL/POSIX/HAPPlatformServiceDiscovery.c
++++ b/PAL/POSIX/HAPPlatformServiceDiscovery.c
+@@ -5,6 +5,8 @@
+ // See [CONTRIBUTORS.md] for the list of HomeKit ADK project authors.
+ 
+ #include <arpa/inet.h>
++#include <stdio.h>
++#include <netutils/mdnsd.h>
+ #include <unistd.h>
+ 
+ #include "HAPPlatform+Init.h"
+@@ -14,39 +16,6 @@ static const HAPLogObject logObject = { .subsystem = kHAPPlatform_LogSubsystem,
+ 
+ // TODO Add support for re-registering service discovery in case of error while app is running.
+ 
+-static void HandleFileHandleCallback(
+-        HAPPlatformFileHandleRef fileHandle,
+-        HAPPlatformFileHandleEvent fileHandleEvents,
+-        void* _Nullable context) {
+-    HAPAssert(fileHandle);
+-    HAPAssert(fileHandleEvents.isReadyForReading);
+-    HAPAssert(context);
+-
+-    HAPPlatformServiceDiscoveryRef serviceDiscovery = context;
+-
+-    HAPAssert(serviceDiscovery->fileHandle == fileHandle);
+-
+-    DNSServiceErrorType errorCode = DNSServiceProcessResult(serviceDiscovery->dnsService);
+-    if (errorCode != kDNSServiceErr_NoError) {
+-        HAPLogError(&logObject, "%s: Service discovery results processing failed: %ld.", __func__, (long) errorCode);
+-        HAPFatalError();
+-    }
+-}
+-
+-static void HandleServiceRegisterReply(
+-        DNSServiceRef service HAP_UNUSED,
+-        DNSServiceFlags flags HAP_UNUSED,
+-        DNSServiceErrorType errorCode,
+-        const char* name HAP_UNUSED,
+-        const char* regtype HAP_UNUSED,
+-        const char* domain HAP_UNUSED,
+-        void* context_ HAP_UNUSED) {
+-    if (errorCode != kDNSServiceErr_NoError) {
+-        HAPLogError(&logObject, "%s: Service discovery registration failed: %ld.", __func__, (long) errorCode);
+-        HAPFatalError();
+-    }
+-}
+-
+ void HAPPlatformServiceDiscoveryCreate(
+         HAPPlatformServiceDiscoveryRef serviceDiscovery,
+         const HAPPlatformServiceDiscoveryOptions* options) {
+@@ -67,7 +36,7 @@ void HAPPlatformServiceDiscoveryCreate(
+                 serviceDiscovery->interfaceName, HAPNonnull(options->interfaceName), numInterfaceNameBytes);
+     }
+ 
+-    serviceDiscovery->dnsService = NULL;
++    mdnsd_start(serviceDiscovery->interfaceName, "wlan0");
+ }
+ 
+ void HAPPlatformServiceDiscoveryRegister(
+@@ -78,14 +47,10 @@ void HAPPlatformServiceDiscoveryRegister(
+         HAPPlatformServiceDiscoveryTXTRecord* txtRecords,
+         size_t numTXTRecords) {
+     HAPPrecondition(serviceDiscovery);
+-    HAPPrecondition(!serviceDiscovery->dnsService);
+     HAPPrecondition(name);
+     HAPPrecondition(protocol);
+     HAPPrecondition(txtRecords);
+ 
+-    HAPError err;
+-    DNSServiceErrorType errorCode;
+-
+     uint32_t interfaceIndex;
+     if (serviceDiscovery->interfaceName[0]) {
+         unsigned int i = if_nametoindex(serviceDiscovery->interfaceName);
+@@ -97,16 +62,17 @@ void HAPPlatformServiceDiscoveryRegister(
+     } else {
+         interfaceIndex = 0;
+     }
++    HAPRawBufferCopyBytes(serviceDiscovery->name, HAPNonnull(name), strlen(name));
++    HAPRawBufferCopyBytes(serviceDiscovery->protocol, HAPNonnull(protocol), strlen(protocol));
++    serviceDiscovery->port = port;
+ 
+     HAPLogDebug(&logObject, "interfaceIndex: %lu", (unsigned long) interfaceIndex);
+     HAPLogDebug(&logObject, "name: \"%s\"", name);
+     HAPLogDebug(&logObject, "protocol: \"%s\"", protocol);
+     HAPLogDebug(&logObject, "port: %u", port);
+ 
+-    TXTRecordCreate(
+-            &serviceDiscovery->txtRecord,
+-            sizeof serviceDiscovery->txtRecordBuffer,
+-            &serviceDiscovery->txtRecordBuffer[0]);
++    char* buffer = malloc(512);
++    const char* txt[] = { buffer, NULL };
+     for (size_t i = 0; i < numTXTRecords; i++) {
+         HAPPrecondition(!txtRecords[i].value.numBytes || txtRecords[i].value.bytes);
+         HAPPrecondition(txtRecords[i].value.numBytes <= UINT8_MAX);
+@@ -121,47 +87,22 @@ void HAPPlatformServiceDiscoveryRegister(
+         } else {
+             HAPLogDebug(&logObject, "txtRecord[%lu]: \"%s\"", (unsigned long) i, txtRecords[i].key);
+         }
+-        errorCode = TXTRecordSetValue(
+-                &serviceDiscovery->txtRecord,
++        snprintf(buffer, 512, "%s=%*s",
+                 txtRecords[i].key,
+-                (uint8_t) txtRecords[i].value.numBytes,
+-                txtRecords[i].value.bytes);
+-        if (errorCode != kDNSServiceErr_NoError) {
+-            HAPLogError(&logObject, "%s: TXTRecordSetValue failed: %ld.", __func__, (long) errorCode);
++                txtRecords[i].value.numBytes,
++                (char*) txtRecords[i].value.bytes);
++        int errorCode = mdnsd_register_service(
++                serviceDiscovery->name,
++                serviceDiscovery->protocol,
++                serviceDiscovery->port,
++                serviceDiscovery->interfaceName,
++                txt);
++        if (errorCode != 0) {
++            HAPLogError(&logObject, "%s: TXTRecordSetValue failed: %d.", __func__, errorCode);
+             HAPFatalError();
+         }
+     }
+-
+-    errorCode = DNSServiceRegister(
+-            &serviceDiscovery->dnsService,
+-            /* flags: */ 0,
+-            interfaceIndex,
+-            name,
+-            protocol,
+-            /* domain: */ NULL,
+-            /* host: */ NULL,
+-            htons(port),
+-            TXTRecordGetLength(&serviceDiscovery->txtRecord),
+-            TXTRecordGetBytesPtr(&serviceDiscovery->txtRecord),
+-            HandleServiceRegisterReply,
+-            serviceDiscovery);
+-    if (errorCode != kDNSServiceErr_NoError) {
+-        HAPLogError(&logObject, "%s: DNSServiceRegister failed: %ld.", __func__, (long) errorCode);
+-        HAPFatalError();
+-    }
+-
+-    err = HAPPlatformFileHandleRegister(
+-            &serviceDiscovery->fileHandle,
+-            DNSServiceRefSockFD(serviceDiscovery->dnsService),
+-            (HAPPlatformFileHandleEvent) {
+-                    .isReadyForReading = true, .isReadyForWriting = false, .hasErrorConditionPending = false },
+-            HandleFileHandleCallback,
+-            serviceDiscovery);
+-    if (err) {
+-        HAPLogError(&logObject, "%s: HAPPlatformFileHandleRegister failed: %u.", __func__, err);
+-        HAPFatalError();
+-    }
+-    HAPAssert(serviceDiscovery->fileHandle);
++    free(buffer);
+ }
+ 
+ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
+@@ -169,16 +110,10 @@ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
+         HAPPlatformServiceDiscoveryTXTRecord* txtRecords,
+         size_t numTXTRecords) {
+     HAPPrecondition(serviceDiscovery);
+-    HAPPrecondition(serviceDiscovery->dnsService);
+     HAPPrecondition(txtRecords);
+ 
+-    DNSServiceErrorType errorCode;
+-
+-    TXTRecordDeallocate(&serviceDiscovery->txtRecord);
+-    TXTRecordCreate(
+-            &serviceDiscovery->txtRecord,
+-            sizeof serviceDiscovery->txtRecordBuffer,
+-            &serviceDiscovery->txtRecordBuffer[0]);
++    char* buffer = malloc(512);
++    const char* txt[] = { buffer, NULL };
+     for (size_t i = 0; i < numTXTRecords; i++) {
+         HAPPrecondition(!txtRecords[i].value.numBytes || txtRecords[i].value.bytes);
+         HAPPrecondition(txtRecords[i].value.numBytes <= UINT8_MAX);
+@@ -193,38 +128,26 @@ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
+         } else {
+             HAPLogDebug(&logObject, "txtRecord[%lu]: \"%s\"", (unsigned long) i, txtRecords[i].key);
+         }
+-        errorCode = TXTRecordSetValue(
+-                &serviceDiscovery->txtRecord,
++        snprintf(buffer, 512, "%s=%*s",
+                 txtRecords[i].key,
+-                (uint8_t) txtRecords[i].value.numBytes,
+-                txtRecords[i].value.bytes);
+-        if (errorCode != kDNSServiceErr_NoError) {
+-            HAPLogError(&logObject, "%s: TXTRecordSetValue failed: %ld.", __func__, (long) errorCode);
++                txtRecords[i].value.numBytes,
++                (char*) txtRecords[i].value.bytes);
++        int errorCode = mdnsd_register_service(
++                serviceDiscovery->name,
++                serviceDiscovery->protocol,
++                serviceDiscovery->port,
++                serviceDiscovery->interfaceName,
++                txt);
++        if (errorCode != 0) {
++            HAPLogError(&logObject, "%s: TXTRecordSetValue failed: %d.", __func__, errorCode);
+             HAPFatalError();
+         }
+     }
+-
+-    errorCode = DNSServiceUpdateRecord(
+-            serviceDiscovery->dnsService,
+-            /* recordRef: */ NULL,
+-            /* flags: */ 0,
+-            TXTRecordGetLength(&serviceDiscovery->txtRecord),
+-            TXTRecordGetBytesPtr(&serviceDiscovery->txtRecord),
+-            0);
+-    if (errorCode != kDNSServiceErr_NoError) {
+-        HAPLogError(&logObject, "%s: DNSServiceUpdateRecord failed: %ld.", __func__, (long) errorCode);
+-        HAPFatalError();
+-    }
++    free(buffer);
+ }
+ 
+ void HAPPlatformServiceDiscoveryStop(HAPPlatformServiceDiscoveryRef serviceDiscovery) {
+     HAPPrecondition(serviceDiscovery);
+-    HAPPrecondition(serviceDiscovery->dnsService);
+-
+-    HAPPlatformFileHandleDeregister(serviceDiscovery->fileHandle);
+-
+-    DNSServiceRefDeallocate(serviceDiscovery->dnsService);
+-    serviceDiscovery->dnsService = NULL;
+ 
+-    TXTRecordDeallocate(&serviceDiscovery->txtRecord);
++    mdnsd_stop();
+ }

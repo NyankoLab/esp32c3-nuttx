@@ -27,11 +27,22 @@ ln -s ${ESP_GCC_PATH}/riscv32-esp-elf-strip ${ESP_GCC_PATH}/riscv64-unknown-elf-
 
 cd apps
 git apply ../patch/esp32c3-apps.diff
+
+mkdir -p netutils/homekit
+cd netutils/homekit
+cp ../../../patch/homekit/* .
+git clone https://github.com/apple/HomeKitADK
+cd HomeKitADK
+git apply ../0001_patch_nuttx.patch
+cd ..
+cd ../..
+
 mkdir -p netutils/mdns
 cd netutils/mdns
 cp ../../../patch/mdns/* .
 cp ../../../patch/mdns/include/mdnsd.h ../../include/netutils
 cd ../..
+
 cd ..
 
 cd nuttx

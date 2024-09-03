@@ -200,7 +200,7 @@ static void print_rr_entry(struct rr_entry *rr_e)
 		str2 = NULL;
 	}
 
-	DEBUG_PRINTF("type:%s, ttl=%d, time=%d, ca_fl=%d, rr_class=%d, name=[%s]", rr_get_type_name(rr_e->type), rr_e->ttl, (unsigned int)(time(NULL) - rr_e->update_time), (int)rr_e->cache_flush, rr_e->rr_class, str1 ? str1 : "NULL");
+	DEBUG_PRINTF("type:%s, ttl=%ld, time=%d, ca_fl=%d, rr_class=%d, name=[%s]", rr_get_type_name(rr_e->type), rr_e->ttl, (unsigned int)(time(NULL) - rr_e->update_time), (int)rr_e->cache_flush, rr_e->rr_class, str1 ? str1 : "NULL");
 
 	if (rr_e->type == RR_SRV || rr_e->type == RR_PTR) {
 		DEBUG_PRINTF(", target=[%s]\n", str2 ? str2 : "NULL");
@@ -1702,9 +1702,7 @@ static int init_mdns_context(int domain)
 		printf("ERROR: pthread_attr_init() failed.\n");
 		goto errout_with_mutex;
 	}
-#if 0							/* PTHREAD_CREATE_DETACHED is not supported in tinyara */
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-#endif
 
 	if (pthread_attr_setstacksize(&attr, THREAD_MAINLOOP_STACKSIZE) != 0) {
 		printf("ERROR: pthread_attr_setstacksize() failed.\n");

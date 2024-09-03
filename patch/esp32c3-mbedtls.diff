@@ -11,21 +11,6 @@ index e63d08b..1cb9a8a 100644
  #error "This module only works on Unix and Windows, see MBEDTLS_NET_C in mbedtls_config.h"
  #endif
  
-diff --git a/components/mbedtls/port/include/mbedtls/esp_config.h b/components/mbedtls/port/include/mbedtls/esp_config.h
-index ddebe16903..7ace9955b3 100644
---- a/components/mbedtls/port/include/mbedtls/esp_config.h
-+++ b/components/mbedtls/port/include/mbedtls/esp_config.h
-@@ -2175,9 +2175,7 @@
-  *
-  * This module provides networking routines.
-  */
--#ifdef MBEDTLS_NET_C
--#undef MBEDTLS_NET_C
--#endif
-+#define MBEDTLS_NET_C
- 
- /**
-  * \def MBEDTLS_OID_C
 diff --git a/components/mbedtls/port/aes/block/esp_aes.c b/components/mbedtls/port/aes/block/esp_aes.c
 index fcf4e2a67b..3a7e3f91c6 100644
 --- a/components/mbedtls/port/aes/block/esp_aes.c
@@ -905,6 +890,69 @@ index 2f8e958b27..b09411bf38 100644
  #endif /* MBEDTLS_AES_ALT */
  
  #ifdef __cplusplus
+diff --git a/components/mbedtls/port/include/mbedtls/esp_config.h b/components/mbedtls/port/include/mbedtls/esp_config.h
+index ddebe16903..d36b22aaa1 100644
+--- a/components/mbedtls/port/include/mbedtls/esp_config.h
++++ b/components/mbedtls/port/include/mbedtls/esp_config.h
+@@ -1814,11 +1814,7 @@
+  *
+  * Module:  library/chacha20.c
+  */
+-#ifdef CONFIG_MBEDTLS_CHACHA20_C
+ #define MBEDTLS_CHACHA20_C
+-#else
+-#undef MBEDTLS_CHACHA20_C
+-#endif
+ 
+ /**
+  * \def MBEDTLS_CHACHAPOLY_C
+@@ -1829,11 +1825,7 @@
+  *
+  * This module requires: MBEDTLS_CHACHA20_C, MBEDTLS_POLY1305_C
+  */
+-#ifdef CONFIG_MBEDTLS_CHACHAPOLY_C
+ #define MBEDTLS_CHACHAPOLY_C
+-#else
+-#undef MBEDTLS_CHACHAPOLY_C
+-#endif
+ 
+ /**
+  * \def MBEDTLS_CIPHER_C
+@@ -2090,11 +2082,7 @@
+  * This module enables support for the Hashed Message Authentication Code
+  * (HMAC)-based key derivation function (HKDF).
+  */
+-#ifdef CONFIG_MBEDTLS_HKDF_C
+ #define MBEDTLS_HKDF_C
+-#else
+-#undef MBEDTLS_HKDF_C
+-#endif
+ 
+ /**
+  * \def MBEDTLS_HMAC_DRBG_C
+@@ -2175,9 +2163,7 @@
+  *
+  * This module provides networking routines.
+  */
+-#ifdef MBEDTLS_NET_C
+-#undef MBEDTLS_NET_C
+-#endif
++#define MBEDTLS_NET_C
+ 
+ /**
+  * \def MBEDTLS_OID_C
+@@ -2387,11 +2373,7 @@
+  * Module:  library/poly1305.c
+  * Caller:  library/chachapoly.c
+  */
+-#ifdef CONFIG_MBEDTLS_POLY1305_C
+ #define MBEDTLS_POLY1305_C
+-#else
+-#undef MBEDTLS_POLY1305_C
+-#endif
+ 
+ /**
+  * \def MBEDTLS_RIPEMD160_C
 diff --git a/components/mbedtls/port/sha/block/esp_sha1.c b/components/mbedtls/port/sha/block/esp_sha1.c
 index 1e73fe5d92..8c38a2c3b6 100644
 --- a/components/mbedtls/port/sha/block/esp_sha1.c

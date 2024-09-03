@@ -1,3 +1,45 @@
+diff --git a/External/HTTP/util_http_reader.h b/External/HTTP/util_http_reader.h
+index 57b1259..63d397b 100644
+--- a/External/HTTP/util_http_reader.h
++++ b/External/HTTP/util_http_reader.h
+@@ -7,7 +7,7 @@
+ #ifndef UTIL_HTTP_READER_H
+ #define UTIL_HTTP_READER_H
+ 
+-#include "HAPPlatform.h"
++#include "../../PAL/HAPPlatform.h"
+ 
+ #define util_HTTP_READER_TYPE_REQUEST  0
+ #define util_HTTP_READER_TYPE_RESPONSE 1
+diff --git a/External/JSON/util_json_reader.h b/External/JSON/util_json_reader.h
+index e6f0dc5..2e3633c 100644
+--- a/External/JSON/util_json_reader.h
++++ b/External/JSON/util_json_reader.h
+@@ -7,7 +7,7 @@
+ #ifndef UTIL_JSON_READER_H
+ #define UTIL_JSON_READER_H
+ 
+-#include "HAPPlatform.h"
++#include "../../PAL/HAPPlatform.h"
+ 
+ #define util_JSON_READER_STATE_READING_WHITESPACE 0
+ 
+diff --git a/HAP/HAP+Internal.h b/HAP/HAP+Internal.h
+index dc21182..339d263 100644
+--- a/HAP/HAP+Internal.h
++++ b/HAP/HAP+Internal.h
+@@ -21,9 +21,9 @@ extern "C" {
+ 
+ #include "HAP.h"
+ 
+-#include "HAPCrypto.h"
++#include "../PAL/HAPCrypto.h"
+ 
+-#include "util_http_reader.h"
++#include "../External/HTTP/util_http_reader.h"
+ 
+ #include "HAPStringBuilder.h"
+ 
 diff --git a/HAP/HAP.h b/HAP/HAP.h
 index 89f40a1..43a1bc6 100644
 --- a/HAP/HAP.h
@@ -8,6 +50,19 @@ index 89f40a1..43a1bc6 100644
  
 -#include "HAPPlatform.h"
 +#include "../PAL/HAPPlatform.h"
+ 
+ #if __has_feature(nullability)
+ #pragma clang assume_nonnull begin
+diff --git a/HAP/HAPJSONUtils.h b/HAP/HAPJSONUtils.h
+index a776c47..d881492 100644
+--- a/HAP/HAPJSONUtils.h
++++ b/HAP/HAPJSONUtils.h
+@@ -13,7 +13,7 @@ extern "C" {
+ 
+ #include "HAP+Internal.h"
+ 
+-#include "util_json_reader.h"
++#include "../External/JSON/util_json_reader.h"
  
  #if __has_feature(nullability)
  #pragma clang assume_nonnull begin
@@ -160,6 +215,68 @@ index 85a6926..cf5271c 100644
      HAPAssert(ret == 0);
      mbedtls_sha256_free(&ctx);
  }
+diff --git a/PAL/HAPBase+CompilerAbstraction.h b/PAL/HAPBase+CompilerAbstraction.h
+index cd4a73e..78ca374 100644
+--- a/PAL/HAPBase+CompilerAbstraction.h
++++ b/PAL/HAPBase+CompilerAbstraction.h
+@@ -251,7 +251,7 @@ extern "C" {
+  * @param      identifier           Identifier to poison.
+  */
+ /**@{*/
+-#if !defined(HAP_DISALLOW_USE_IGNORED) || !HAP_DISALLOW_USE_IGNORED
++#if 0//!defined(HAP_DISALLOW_USE_IGNORED) || !HAP_DISALLOW_USE_IGNORED
+ #if defined(__clang__) || (defined(__GNUC__) && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)))
+ /**@cond */
+ #define HAP_DISALLOW_USE_(directive) _Pragma(#directive)
+diff --git a/PAL/HAPLog.c b/PAL/HAPLog.c
+index b868952..7e1cf59 100644
+--- a/PAL/HAPLog.c
++++ b/PAL/HAPLog.c
+@@ -7,6 +7,8 @@
+ #undef HAP_DISALLOW_USE_IGNORED
+ #define HAP_DISALLOW_USE_IGNORED 1
+ 
++#include <stdlib.h>
++
+ #include "HAPPlatform.h"
+ 
+ const HAPLogObject kHAPLog_Default = { .subsystem = NULL, .category = NULL };
+@@ -51,17 +53,19 @@ static void
+     }
+ 
+     // Format log message.
+-    char message[kHAPLogMessage_MaxBytes];
+-    HAPRawBufferZero(message, sizeof message);
++    char* message = malloc(kHAPLogMessage_MaxBytes);
++    HAPRawBufferZero(message, kHAPLogMessage_MaxBytes);
+ 
+-    err = HAPStringWithFormatAndArguments(message, sizeof message, format, args);
++    err = HAPStringWithFormatAndArguments(message, kHAPLogMessage_MaxBytes, format, args);
+     if (err) {
+         HAPPlatformLogCapture(log, kHAPLogType_Error, "<Log message too long>", NULL, 0);
++        free(message);
+         return;
+     }
+ 
+     // Capture log.
+     HAPPlatformLogCapture(log, type, message, bytes, numBytes);
++    free(message);
+ }
+ 
+ HAP_PRINTFLIKE(4, 5)
+diff --git a/PAL/POSIX/HAPPlatform+Init.h b/PAL/POSIX/HAPPlatform+Init.h
+index 4e60302..a387c94 100644
+--- a/PAL/POSIX/HAPPlatform+Init.h
++++ b/PAL/POSIX/HAPPlatform+Init.h
+@@ -30,7 +30,7 @@ extern "C" {
+ 
+ #include <stdlib.h>
+ 
+-#include "HAPPlatform.h"
++#include "../HAPPlatform.h"
+ 
+ #if __has_feature(nullability)
+ #pragma clang assume_nonnull begin
 diff --git a/PAL/POSIX/HAPPlatform.c b/PAL/POSIX/HAPPlatform.c
 index 07bdfa2..f5ef770 100644
 --- a/PAL/POSIX/HAPPlatform.c
@@ -173,6 +290,32 @@ index 07bdfa2..f5ef770 100644
      if (!sysinfo) {
          sysinfo = (struct utsname*) malloc(sizeof(struct utsname));
          int ret = uname(sysinfo);
+diff --git a/PAL/POSIX/HAPPlatformAccessorySetup+Init.h b/PAL/POSIX/HAPPlatformAccessorySetup+Init.h
+index 37b8610..a7cded6 100644
+--- a/PAL/POSIX/HAPPlatformAccessorySetup+Init.h
++++ b/PAL/POSIX/HAPPlatformAccessorySetup+Init.h
+@@ -11,7 +11,7 @@
+ extern "C" {
+ #endif
+ 
+-#include "HAPPlatform.h"
++#include "../HAPPlatform.h"
+ 
+ #if __has_feature(nullability)
+ #pragma clang assume_nonnull begin
+diff --git a/PAL/POSIX/HAPPlatformAccessorySetupDisplay+Init.h b/PAL/POSIX/HAPPlatformAccessorySetupDisplay+Init.h
+index c5a80c4..30af1fb 100644
+--- a/PAL/POSIX/HAPPlatformAccessorySetupDisplay+Init.h
++++ b/PAL/POSIX/HAPPlatformAccessorySetupDisplay+Init.h
+@@ -11,7 +11,7 @@
+ extern "C" {
+ #endif
+ 
+-#include "HAPPlatform.h"
++#include "../HAPPlatform.h"
+ 
+ #if __has_feature(nullability)
+ #pragma clang assume_nonnull begin
 diff --git a/PAL/POSIX/HAPPlatformAccessorySetupDisplay.c b/PAL/POSIX/HAPPlatformAccessorySetupDisplay.c
 index bbc7c22..c90076b 100644
 --- a/PAL/POSIX/HAPPlatformAccessorySetupDisplay.c
@@ -242,6 +385,45 @@ index bbc7c22..c90076b 100644
  }
  
  void HAPPlatformAccessorySetupDisplayHandleStopPairing(HAPPlatformAccessorySetupDisplayRef setupDisplay) {
+diff --git a/PAL/POSIX/HAPPlatformFileHandle.h b/PAL/POSIX/HAPPlatformFileHandle.h
+index d66482e..34843ad 100644
+--- a/PAL/POSIX/HAPPlatformFileHandle.h
++++ b/PAL/POSIX/HAPPlatformFileHandle.h
+@@ -11,7 +11,7 @@
+ extern "C" {
+ #endif
+ 
+-#include "HAPPlatform.h"
++#include "../HAPPlatform.h"
+ 
+ #if __has_feature(nullability)
+ #pragma clang assume_nonnull begin
+diff --git a/PAL/POSIX/HAPPlatformKeyValueStore+Init.h b/PAL/POSIX/HAPPlatformKeyValueStore+Init.h
+index 0bf2c6c..f58e57c 100644
+--- a/PAL/POSIX/HAPPlatformKeyValueStore+Init.h
++++ b/PAL/POSIX/HAPPlatformKeyValueStore+Init.h
+@@ -11,7 +11,7 @@
+ extern "C" {
+ #endif
+ 
+-#include "HAPPlatform.h"
++#include "../HAPPlatform.h"
+ 
+ #if __has_feature(nullability)
+ #pragma clang assume_nonnull begin
+diff --git a/PAL/POSIX/HAPPlatformLog+Init.h b/PAL/POSIX/HAPPlatformLog+Init.h
+index 1db273a..f4fe6ed 100644
+--- a/PAL/POSIX/HAPPlatformLog+Init.h
++++ b/PAL/POSIX/HAPPlatformLog+Init.h
+@@ -11,7 +11,7 @@
+ extern "C" {
+ #endif
+ 
+-#include "HAPPlatform.h"
++#include "../HAPPlatform.h"
+ 
+ #if __has_feature(nullability)
+ #pragma clang assume_nonnull begin
 diff --git a/PAL/POSIX/HAPPlatformMFiHWAuth+Init.h b/PAL/POSIX/HAPPlatformMFiHWAuth+Init.h
 index 65819e7..c88897f 100644
 --- a/PAL/POSIX/HAPPlatformMFiHWAuth+Init.h
@@ -387,6 +569,19 @@ index 1db98c6..1c73933 100644
 -    return kHAPError_Unknown;
 +    return kHAPError_None;
  }
+diff --git a/PAL/POSIX/HAPPlatformMFiTokenAuth+Init.h b/PAL/POSIX/HAPPlatformMFiTokenAuth+Init.h
+index d2d40ce..12e6708 100644
+--- a/PAL/POSIX/HAPPlatformMFiTokenAuth+Init.h
++++ b/PAL/POSIX/HAPPlatformMFiTokenAuth+Init.h
+@@ -11,7 +11,7 @@
+ extern "C" {
+ #endif
+ 
+-#include "HAPPlatform.h"
++#include "../HAPPlatform.h"
+ 
+ #if __has_feature(nullability)
+ #pragma clang assume_nonnull begin
 diff --git a/PAL/POSIX/HAPPlatformRandomNumber.c b/PAL/POSIX/HAPPlatformRandomNumber.c
 index cacf2d3..6af7d20 100644
 --- a/PAL/POSIX/HAPPlatformRandomNumber.c
@@ -468,18 +663,35 @@ index cacf2d3..6af7d20 100644
 +    long value = random();
 +    memcpy(bytes, &value, numBytes);
  }
+diff --git a/PAL/POSIX/HAPPlatformRunLoop+Init.h b/PAL/POSIX/HAPPlatformRunLoop+Init.h
+index 4c159d9..2f865b8 100644
+--- a/PAL/POSIX/HAPPlatformRunLoop+Init.h
++++ b/PAL/POSIX/HAPPlatformRunLoop+Init.h
+@@ -11,7 +11,7 @@
+ extern "C" {
+ #endif
+ 
+-#include "HAPPlatform.h"
++#include "../HAPPlatform.h"
+ 
+ #if __has_feature(nullability)
+ #pragma clang assume_nonnull begin
 diff --git a/PAL/POSIX/HAPPlatformServiceDiscovery+Init.h b/PAL/POSIX/HAPPlatformServiceDiscovery+Init.h
-index 24e6bee..4effadc 100644
+index 24e6bee..8c3c936 100644
 --- a/PAL/POSIX/HAPPlatformServiceDiscovery+Init.h
 +++ b/PAL/POSIX/HAPPlatformServiceDiscovery+Init.h
-@@ -11,7 +11,6 @@
+@@ -11,10 +11,9 @@
  extern "C" {
  #endif
  
 -#include <dns_sd.h>
  #include <net/if.h>
  
- #include "HAPPlatform.h"
+-#include "HAPPlatform.h"
++#include "../HAPPlatform.h"
+ #include "HAPPlatformFileHandle.h"
+ 
+ #if __has_feature(nullability)
 @@ -52,11 +51,6 @@ typedef struct {
      const char* _Nullable interfaceName;
  } HAPPlatformServiceDiscoveryOptions;
@@ -492,7 +704,7 @@ index 24e6bee..4effadc 100644
  /**
   * Service discovery.
   */
-@@ -64,11 +58,9 @@ struct HAPPlatformServiceDiscovery {
+@@ -64,11 +58,12 @@ struct HAPPlatformServiceDiscovery {
      // Opaque type. Do not access the instance fields directly.
      /**@cond */
      char interfaceName[IFNAMSIZ];
@@ -502,13 +714,16 @@ index 24e6bee..4effadc 100644
 -    char txtRecordBuffer[kHAPPlatformServiceDiscovery_MaxTXTRecordBufferBytes];
 -    HAPPlatformFileHandleRef fileHandle;
 +    char name[64];
-+    char protocol[64];
++    char protocol[32];
++    struct {
++        char txt[32];
++    } txtRecords[16];
 +    HAPNetworkPort port;
      /**@endcond */
  };
  
 diff --git a/PAL/POSIX/HAPPlatformServiceDiscovery.c b/PAL/POSIX/HAPPlatformServiceDiscovery.c
-index 1d9e949..38cc723 100644
+index 1d9e949..9555494 100644
 --- a/PAL/POSIX/HAPPlatformServiceDiscovery.c
 +++ b/PAL/POSIX/HAPPlatformServiceDiscovery.c
 @@ -5,6 +5,8 @@
@@ -565,7 +780,7 @@ index 1d9e949..38cc723 100644
      }
  
 -    serviceDiscovery->dnsService = NULL;
-+    mdnsd_start(serviceDiscovery->interfaceName, "wlan0");
++    mdnsd_start("hap.local", serviceDiscovery->interfaceName[0] ? serviceDiscovery->interfaceName : "wlan0");
  }
  
  void HAPPlatformServiceDiscoveryRegister(
@@ -584,16 +799,7 @@ index 1d9e949..38cc723 100644
      uint32_t interfaceIndex;
      if (serviceDiscovery->interfaceName[0]) {
          unsigned int i = if_nametoindex(serviceDiscovery->interfaceName);
-@@ -97,16 +62,17 @@ void HAPPlatformServiceDiscoveryRegister(
-     } else {
-         interfaceIndex = 0;
-     }
-+    HAPRawBufferCopyBytes(serviceDiscovery->name, HAPNonnull(name), strlen(name));
-+    HAPRawBufferCopyBytes(serviceDiscovery->protocol, HAPNonnull(protocol), strlen(protocol));
-+    serviceDiscovery->port = port;
- 
-     HAPLogDebug(&logObject, "interfaceIndex: %lu", (unsigned long) interfaceIndex);
-     HAPLogDebug(&logObject, "name: \"%s\"", name);
+@@ -103,10 +68,10 @@ void HAPPlatformServiceDiscoveryRegister(
      HAPLogDebug(&logObject, "protocol: \"%s\"", protocol);
      HAPLogDebug(&logObject, "port: %u", port);
  
@@ -601,18 +807,21 @@ index 1d9e949..38cc723 100644
 -            &serviceDiscovery->txtRecord,
 -            sizeof serviceDiscovery->txtRecordBuffer,
 -            &serviceDiscovery->txtRecordBuffer[0]);
-+    char* buffer = malloc(512);
-+    const char* txt[] = { buffer, NULL };
++    gethostname(serviceDiscovery->name, 64);
++    snprintf(serviceDiscovery->protocol, 32, "%s%s", protocol, ".local");
++    serviceDiscovery->port = port;
++
      for (size_t i = 0; i < numTXTRecords; i++) {
          HAPPrecondition(!txtRecords[i].value.numBytes || txtRecords[i].value.bytes);
          HAPPrecondition(txtRecords[i].value.numBytes <= UINT8_MAX);
-@@ -121,47 +87,22 @@ void HAPPlatformServiceDiscoveryRegister(
+@@ -121,47 +86,22 @@ void HAPPlatformServiceDiscoveryRegister(
          } else {
              HAPLogDebug(&logObject, "txtRecord[%lu]: \"%s\"", (unsigned long) i, txtRecords[i].key);
          }
 -        errorCode = TXTRecordSetValue(
 -                &serviceDiscovery->txtRecord,
-+        snprintf(buffer, 512, "%s=%*s",
++        const char* txt[] = { serviceDiscovery->txtRecords[i].txt, NULL };
++        snprintf(serviceDiscovery->txtRecords[i].txt, 32, "%s=%*s",
                  txtRecords[i].key,
 -                (uint8_t) txtRecords[i].value.numBytes,
 -                txtRecords[i].value.bytes);
@@ -662,11 +871,10 @@ index 1d9e949..38cc723 100644
 -        HAPFatalError();
 -    }
 -    HAPAssert(serviceDiscovery->fileHandle);
-+    free(buffer);
  }
  
  void HAPPlatformServiceDiscoveryUpdateTXTRecords(
-@@ -169,16 +110,10 @@ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
+@@ -169,16 +109,8 @@ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
          HAPPlatformServiceDiscoveryTXTRecord* txtRecords,
          size_t numTXTRecords) {
      HAPPrecondition(serviceDiscovery);
@@ -680,18 +888,17 @@ index 1d9e949..38cc723 100644
 -            &serviceDiscovery->txtRecord,
 -            sizeof serviceDiscovery->txtRecordBuffer,
 -            &serviceDiscovery->txtRecordBuffer[0]);
-+    char* buffer = malloc(512);
-+    const char* txt[] = { buffer, NULL };
      for (size_t i = 0; i < numTXTRecords; i++) {
          HAPPrecondition(!txtRecords[i].value.numBytes || txtRecords[i].value.bytes);
          HAPPrecondition(txtRecords[i].value.numBytes <= UINT8_MAX);
-@@ -193,38 +128,26 @@ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
+@@ -193,38 +125,26 @@ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
          } else {
              HAPLogDebug(&logObject, "txtRecord[%lu]: \"%s\"", (unsigned long) i, txtRecords[i].key);
          }
 -        errorCode = TXTRecordSetValue(
 -                &serviceDiscovery->txtRecord,
-+        snprintf(buffer, 512, "%s=%*s",
++        const char* txt[] = { serviceDiscovery->txtRecords[i].txt, NULL };
++        snprintf(serviceDiscovery->txtRecords[i].txt, 32, "%s=%*s",
                  txtRecords[i].key,
 -                (uint8_t) txtRecords[i].value.numBytes,
 -                txtRecords[i].value.bytes);
@@ -722,7 +929,6 @@ index 1d9e949..38cc723 100644
 -        HAPLogError(&logObject, "%s: DNSServiceUpdateRecord failed: %ld.", __func__, (long) errorCode);
 -        HAPFatalError();
 -    }
-+    free(buffer);
  }
  
  void HAPPlatformServiceDiscoveryStop(HAPPlatformServiceDiscoveryRef serviceDiscovery) {
@@ -737,3 +943,89 @@ index 1d9e949..38cc723 100644
 -    TXTRecordDeallocate(&serviceDiscovery->txtRecord);
 +    mdnsd_stop();
  }
+diff --git a/PAL/POSIX/HAPPlatformSystemCommand.h b/PAL/POSIX/HAPPlatformSystemCommand.h
+index 21fe780..065bef9 100644
+--- a/PAL/POSIX/HAPPlatformSystemCommand.h
++++ b/PAL/POSIX/HAPPlatformSystemCommand.h
+@@ -11,7 +11,7 @@
+ extern "C" {
+ #endif
+ 
+-#include "HAPPlatform.h"
++#include "../HAPPlatform.h"
+ 
+ #if __has_feature(nullability)
+ #pragma clang assume_nonnull begin
+diff --git a/PAL/POSIX/HAPPlatformTCPStreamManager+Init.h b/PAL/POSIX/HAPPlatformTCPStreamManager+Init.h
+index 73db9cc..1d80746 100644
+--- a/PAL/POSIX/HAPPlatformTCPStreamManager+Init.h
++++ b/PAL/POSIX/HAPPlatformTCPStreamManager+Init.h
+@@ -13,7 +13,7 @@ extern "C" {
+ 
+ #include <net/if.h>
+ 
+-#include "HAPPlatform.h"
++#include "../HAPPlatform.h"
+ #include "HAPPlatformFileHandle.h"
+ 
+ #if __has_feature(nullability)
+diff --git a/PAL/POSIX/HAPPlatformTCPStreamManager.c b/PAL/POSIX/HAPPlatformTCPStreamManager.c
+index 8b43db9..0f34aa6 100644
+--- a/PAL/POSIX/HAPPlatformTCPStreamManager.c
++++ b/PAL/POSIX/HAPPlatformTCPStreamManager.c
+@@ -229,7 +229,7 @@ void HAPPlatformTCPStreamManagerOpenListener(
+     }
+     HAPNetworkPort port = tcpStreamManager->tcpStreamListenerConfiguration.port;
+ 
+-    int fileDescriptor = socket(PF_INET6, SOCK_STREAM, IPPROTO_TCP);
++    int fileDescriptor = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+     if (fileDescriptor == -1) {
+         HAPLogError(&logObject, "Failed to open TCP stream listener socket.");
+         HAPFatalError();
+@@ -284,15 +284,15 @@ void HAPPlatformTCPStreamManagerOpenListener(
+     }
+     HAPLogDebug(&logObject, "TCP stream listener interface index: %u", (unsigned int) interfaceIndex);
+ 
+-    struct sockaddr_in6 sin6;
++    struct sockaddr_in sin;
+ 
+-    HAPRawBufferZero(&sin6, sizeof sin6);
+-    sin6.sin6_family = AF_INET6;
+-    sin6.sin6_port = htons(port);
+-    sin6.sin6_addr = in6addr_any;
++    HAPRawBufferZero(&sin, sizeof sin);
++    sin.sin_family = AF_INET;
++    sin.sin_port = htons(port);
++    sin.sin_addr.s_addr = INADDR_ANY;
+ 
+-    HAPLogBufferDebug(&logObject, (struct sockaddr*) &sin6, sizeof sin6, "bind(%d, <buffer>);", fileDescriptor);
+-    e = bind(fileDescriptor, (struct sockaddr*) &sin6, sizeof sin6);
++    HAPLogBufferDebug(&logObject, (struct sockaddr*) &sin, sizeof sin, "bind(%d, <buffer>);", fileDescriptor);
++    e = bind(fileDescriptor, (struct sockaddr*) &sin, sizeof sin);
+     if (e != 0) {
+         _errno = errno;
+         HAPAssert(e == -1);
+@@ -307,9 +307,9 @@ void HAPPlatformTCPStreamManagerOpenListener(
+     }
+ 
+     if (!port) {
+-        socklen_t sin6_len = sizeof sin6;
+-        HAPRawBufferZero(&sin6, sizeof sin6);
+-        e = getsockname(fileDescriptor, (struct sockaddr*) &sin6, &sin6_len);
++        socklen_t sin_len = sizeof sin;
++        HAPRawBufferZero(&sin, sizeof sin);
++        e = getsockname(fileDescriptor, (struct sockaddr*) &sin, &sin_len);
+         if (e != 0) {
+             _errno = errno;
+             HAPAssert(e == -1);
+@@ -322,8 +322,8 @@ void HAPPlatformTCPStreamManagerOpenListener(
+                     __LINE__);
+             HAPFatalError();
+         }
+-        HAPAssert(sin6.sin6_port);
+-        port = ntohs(sin6.sin6_port);
++        HAPAssert(sin.sin_port);
++        port = ntohs(sin.sin_port);
+     }
+     HAPLogDebug(&logObject, "TCP stream listener port: %u.", port);
+ 

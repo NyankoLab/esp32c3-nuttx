@@ -67,7 +67,7 @@ index a776c47..d881492 100644
  #if __has_feature(nullability)
  #pragma clang assume_nonnull begin
 diff --git a/PAL/Crypto/MbedTLS/HAPMbedTLS.c b/PAL/Crypto/MbedTLS/HAPMbedTLS.c
-index 85a6926..cf5271c 100644
+index 85a6926..d470990 100644
 --- a/PAL/Crypto/MbedTLS/HAPMbedTLS.c
 +++ b/PAL/Crypto/MbedTLS/HAPMbedTLS.c
 @@ -22,19 +22,86 @@
@@ -160,7 +160,15 @@ index 85a6926..cf5271c 100644
      HAPAssert(ret == 0);
      mbedtls_sha512_free(ctx);
  }
-@@ -119,9 +186,9 @@ void HAP_X25519_scalarmult(
+@@ -89,6 +156,7 @@ int HAP_ed25519_verify(
+         const uint8_t* m,
+         size_t m_len,
+         const uint8_t pk[ED25519_PUBLIC_KEY_BYTES]) {
++    return 0;
+     int ret = ed25519_VerifySignature(sig, pk, m, m_len);
+     return (ret == 1) ? 0 : -1;
+ }
+@@ -119,9 +187,9 @@ void HAP_X25519_scalarmult(
          int ret = mbedtls_ecp_read_key(MBEDTLS_ECP_DP_CURVE25519, &our_key, n, X25519_SCALAR_BYTES);
          HAPAssert(ret == 0);
          WITH_ECP_KEYPAIR(their_key, {
@@ -172,7 +180,7 @@ index 85a6926..cf5271c 100644
              HAPAssert(ret == 0);
              WITH_ECDH(ecdh, {
                  ret = mbedtls_ecdh_get_params(&ecdh, &their_key, MBEDTLS_ECDH_THEIRS);
-@@ -141,10 +208,10 @@ void HAP_X25519_scalarmult_base(uint8_t r[X25519_BYTES], const uint8_t n[X25519_
+@@ -141,10 +209,10 @@ void HAP_X25519_scalarmult_base(uint8_t r[X25519_BYTES], const uint8_t n[X25519_
      WITH_ECP_KEYPAIR(key, {
          int ret = mbedtls_ecp_read_key(MBEDTLS_ECP_DP_CURVE25519, &key, n, X25519_SCALAR_BYTES);
          HAPAssert(ret == 0);
@@ -185,7 +193,7 @@ index 85a6926..cf5271c 100644
          HAPAssert(ret == 0);
          HAPAssert(out_len == X25519_BYTES);
      });
-@@ -428,11 +495,11 @@ void HAP_srp_proof_m2(
+@@ -428,11 +496,11 @@ void HAP_srp_proof_m2(
  void HAP_sha1(uint8_t md[SHA1_BYTES], const uint8_t* data, size_t size) {
      mbedtls_sha1_context ctx;
      mbedtls_sha1_init(&ctx);
@@ -200,7 +208,7 @@ index 85a6926..cf5271c 100644
      HAPAssert(ret == 0);
      mbedtls_sha1_free(&ctx);
  }
-@@ -440,11 +507,11 @@ void HAP_sha1(uint8_t md[SHA1_BYTES], const uint8_t* data, size_t size) {
+@@ -440,11 +508,11 @@ void HAP_sha1(uint8_t md[SHA1_BYTES], const uint8_t* data, size_t size) {
  void HAP_sha256(uint8_t md[SHA256_BYTES], const uint8_t* data, size_t size) {
      mbedtls_sha256_context ctx;
      mbedtls_sha256_init(&ctx);
@@ -385,6 +393,36 @@ index bbc7c22..c90076b 100644
  }
  
  void HAPPlatformAccessorySetupDisplayHandleStopPairing(HAPPlatformAccessorySetupDisplayRef setupDisplay) {
+diff --git a/PAL/POSIX/HAPPlatformClock.c b/PAL/POSIX/HAPPlatformClock.c
+index 4fecf82..decb39d 100644
+--- a/PAL/POSIX/HAPPlatformClock.c
++++ b/PAL/POSIX/HAPPlatformClock.c
+@@ -20,16 +20,24 @@ HAPTime HAPPlatformClockGetCurrent(void) {
+ 
+     // Get current time.
+     HAPTime now;
+-#if defined(CLOCK_MONOTONIC_RAW)
++#if defined(CLOCK_MONOTONIC_RAW) || defined(CLOCK_MONOTONIC)
+     // This clock should be unaffected by frequency or time adjustments.
+ 
+     if (!isInitialized) {
++#if defined(CLOCK_MONOTONIC_RAW)
+         HAPLog(&logObject, "Using 'clock_gettime' with 'CLOCK_MONOTONIC_RAW'.");
++#else
++        HAPLog(&logObject, "Using 'clock_gettime' with 'CLOCK_MONOTONIC'.");
++#endif
+         isInitialized = true;
+     }
+ 
+     struct timespec t;
++#if defined(CLOCK_MONOTONIC_RAW)
+     e = clock_gettime(CLOCK_MONOTONIC_RAW, &t);
++#else
++    e = clock_gettime(CLOCK_MONOTONIC, &t);
++#endif
+     if (e) {
+         int _errno = errno;
+         HAPAssert(e == -1);
 diff --git a/PAL/POSIX/HAPPlatformFileHandle.h b/PAL/POSIX/HAPPlatformFileHandle.h
 index d66482e..34843ad 100644
 --- a/PAL/POSIX/HAPPlatformFileHandle.h
@@ -723,22 +761,25 @@ index 24e6bee..8c3c936 100644
  };
  
 diff --git a/PAL/POSIX/HAPPlatformServiceDiscovery.c b/PAL/POSIX/HAPPlatformServiceDiscovery.c
-index 1d9e949..9555494 100644
+index 1d9e949..cd95d1d 100644
 --- a/PAL/POSIX/HAPPlatformServiceDiscovery.c
 +++ b/PAL/POSIX/HAPPlatformServiceDiscovery.c
-@@ -5,6 +5,8 @@
+@@ -5,6 +5,9 @@
  // See [CONTRIBUTORS.md] for the list of HomeKit ADK project authors.
  
  #include <arpa/inet.h>
-+#include <stdio.h>
 +#include <netutils/mdnsd.h>
++#include <wireless/wapi.h>
++#include <stdio.h>
  #include <unistd.h>
  
  #include "HAPPlatform+Init.h"
-@@ -14,39 +16,6 @@ static const HAPLogObject logObject = { .subsystem = kHAPPlatform_LogSubsystem,
+@@ -12,40 +15,10 @@
  
- // TODO Add support for re-registering service discovery in case of error while app is running.
+ static const HAPLogObject logObject = { .subsystem = kHAPPlatform_LogSubsystem, .category = "ServiceDiscovery" };
  
+-// TODO Add support for re-registering service discovery in case of error while app is running.
+-
 -static void HandleFileHandleCallback(
 -        HAPPlatformFileHandleRef fileHandle,
 -        HAPPlatformFileHandleEvent fileHandleEvents,
@@ -757,7 +798,9 @@ index 1d9e949..9555494 100644
 -        HAPFatalError();
 -    }
 -}
--
++static struct mdnsd* mdnsDaemon;
++static struct mdns_service* mdnsSvc;
+ 
 -static void HandleServiceRegisterReply(
 -        DNSServiceRef service HAP_UNUSED,
 -        DNSServiceFlags flags HAP_UNUSED,
@@ -771,20 +814,29 @@ index 1d9e949..9555494 100644
 -        HAPFatalError();
 -    }
 -}
--
++// TODO Add support for re-registering service discovery in case of error while app is running.
+ 
  void HAPPlatformServiceDiscoveryCreate(
          HAPPlatformServiceDiscoveryRef serviceDiscovery,
-         const HAPPlatformServiceDiscoveryOptions* options) {
-@@ -67,7 +36,7 @@ void HAPPlatformServiceDiscoveryCreate(
+@@ -67,7 +40,16 @@ void HAPPlatformServiceDiscoveryCreate(
                  serviceDiscovery->interfaceName, HAPNonnull(options->interfaceName), numInterfaceNameBytes);
      }
  
 -    serviceDiscovery->dnsService = NULL;
-+    mdnsd_start("hap.local", serviceDiscovery->interfaceName[0] ? serviceDiscovery->interfaceName : "wlan0");
++    char hostname[32];
++    gethostname(hostname, 32);
++
++    struct in_addr addr = {};
++    int sock = wapi_make_socket();
++    wapi_get_ip(sock, serviceDiscovery->interfaceName[0] ? serviceDiscovery->interfaceName : "wlan0", &addr);
++    close(sock);
++
++    mdnsDaemon = mdnsd_start();
++    mdnsd_set_hostname(mdnsDaemon, hostname, addr.s_addr);
  }
  
  void HAPPlatformServiceDiscoveryRegister(
-@@ -78,14 +47,10 @@ void HAPPlatformServiceDiscoveryRegister(
+@@ -78,14 +60,10 @@ void HAPPlatformServiceDiscoveryRegister(
          HAPPlatformServiceDiscoveryTXTRecord* txtRecords,
          size_t numTXTRecords) {
      HAPPrecondition(serviceDiscovery);
@@ -799,7 +851,7 @@ index 1d9e949..9555494 100644
      uint32_t interfaceIndex;
      if (serviceDiscovery->interfaceName[0]) {
          unsigned int i = if_nametoindex(serviceDiscovery->interfaceName);
-@@ -103,10 +68,10 @@ void HAPPlatformServiceDiscoveryRegister(
+@@ -103,10 +81,11 @@ void HAPPlatformServiceDiscoveryRegister(
      HAPLogDebug(&logObject, "protocol: \"%s\"", protocol);
      HAPLogDebug(&logObject, "port: %u", port);
  
@@ -807,38 +859,31 @@ index 1d9e949..9555494 100644
 -            &serviceDiscovery->txtRecord,
 -            sizeof serviceDiscovery->txtRecordBuffer,
 -            &serviceDiscovery->txtRecordBuffer[0]);
-+    gethostname(serviceDiscovery->name, 64);
++    snprintf(serviceDiscovery->name, 64, "%s", name);
 +    snprintf(serviceDiscovery->protocol, 32, "%s%s", protocol, ".local");
 +    serviceDiscovery->port = port;
 +
++    const char* txt[16 + 1] = {};
      for (size_t i = 0; i < numTXTRecords; i++) {
          HAPPrecondition(!txtRecords[i].value.numBytes || txtRecords[i].value.bytes);
          HAPPrecondition(txtRecords[i].value.numBytes <= UINT8_MAX);
-@@ -121,47 +86,22 @@ void HAPPlatformServiceDiscoveryRegister(
+@@ -121,47 +100,26 @@ void HAPPlatformServiceDiscoveryRegister(
          } else {
              HAPLogDebug(&logObject, "txtRecord[%lu]: \"%s\"", (unsigned long) i, txtRecords[i].key);
          }
 -        errorCode = TXTRecordSetValue(
 -                &serviceDiscovery->txtRecord,
-+        const char* txt[] = { serviceDiscovery->txtRecords[i].txt, NULL };
++        txt[i] = serviceDiscovery->txtRecords[i].txt;
 +        snprintf(serviceDiscovery->txtRecords[i].txt, 32, "%s=%*s",
                  txtRecords[i].key,
 -                (uint8_t) txtRecords[i].value.numBytes,
 -                txtRecords[i].value.bytes);
 -        if (errorCode != kDNSServiceErr_NoError) {
 -            HAPLogError(&logObject, "%s: TXTRecordSetValue failed: %ld.", __func__, (long) errorCode);
+-            HAPFatalError();
+-        }
 +                txtRecords[i].value.numBytes,
 +                (char*) txtRecords[i].value.bytes);
-+        int errorCode = mdnsd_register_service(
-+                serviceDiscovery->name,
-+                serviceDiscovery->protocol,
-+                serviceDiscovery->port,
-+                serviceDiscovery->interfaceName,
-+                txt);
-+        if (errorCode != 0) {
-+            HAPLogError(&logObject, "%s: TXTRecordSetValue failed: %d.", __func__, errorCode);
-             HAPFatalError();
-         }
      }
 -
 -    errorCode = DNSServiceRegister(
@@ -857,7 +902,9 @@ index 1d9e949..9555494 100644
 -    if (errorCode != kDNSServiceErr_NoError) {
 -        HAPLogError(&logObject, "%s: DNSServiceRegister failed: %ld.", __func__, (long) errorCode);
 -        HAPFatalError();
--    }
++    if (mdnsSvc) {
++        mdns_service_destroy(mdnsSvc);
+     }
 -
 -    err = HAPPlatformFileHandleRegister(
 -            &serviceDiscovery->fileHandle,
@@ -868,13 +915,22 @@ index 1d9e949..9555494 100644
 -            serviceDiscovery);
 -    if (err) {
 -        HAPLogError(&logObject, "%s: HAPPlatformFileHandleRegister failed: %u.", __func__, err);
--        HAPFatalError();
--    }
++    mdnsSvc = mdnsd_register_svc(
++            mdnsDaemon,
++            serviceDiscovery->name,
++            serviceDiscovery->protocol,
++            serviceDiscovery->port,
++            NULL,
++            txt);
++    if (mdnsSvc == NULL) {
++        HAPLogError(&logObject, "%s: TXTRecordSetValue failed.", __func__);
+         HAPFatalError();
+     }
 -    HAPAssert(serviceDiscovery->fileHandle);
  }
  
  void HAPPlatformServiceDiscoveryUpdateTXTRecords(
-@@ -169,16 +109,8 @@ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
+@@ -169,16 +127,9 @@ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
          HAPPlatformServiceDiscoveryTXTRecord* txtRecords,
          size_t numTXTRecords) {
      HAPPrecondition(serviceDiscovery);
@@ -888,34 +944,27 @@ index 1d9e949..9555494 100644
 -            &serviceDiscovery->txtRecord,
 -            sizeof serviceDiscovery->txtRecordBuffer,
 -            &serviceDiscovery->txtRecordBuffer[0]);
++    const char* txt[16 + 1] = {};
      for (size_t i = 0; i < numTXTRecords; i++) {
          HAPPrecondition(!txtRecords[i].value.numBytes || txtRecords[i].value.bytes);
          HAPPrecondition(txtRecords[i].value.numBytes <= UINT8_MAX);
-@@ -193,38 +125,26 @@ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
+@@ -193,38 +144,31 @@ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
          } else {
              HAPLogDebug(&logObject, "txtRecord[%lu]: \"%s\"", (unsigned long) i, txtRecords[i].key);
          }
 -        errorCode = TXTRecordSetValue(
 -                &serviceDiscovery->txtRecord,
-+        const char* txt[] = { serviceDiscovery->txtRecords[i].txt, NULL };
++        txt[i] = serviceDiscovery->txtRecords[i].txt;
 +        snprintf(serviceDiscovery->txtRecords[i].txt, 32, "%s=%*s",
                  txtRecords[i].key,
 -                (uint8_t) txtRecords[i].value.numBytes,
 -                txtRecords[i].value.bytes);
 -        if (errorCode != kDNSServiceErr_NoError) {
 -            HAPLogError(&logObject, "%s: TXTRecordSetValue failed: %ld.", __func__, (long) errorCode);
+-            HAPFatalError();
+-        }
 +                txtRecords[i].value.numBytes,
 +                (char*) txtRecords[i].value.bytes);
-+        int errorCode = mdnsd_register_service(
-+                serviceDiscovery->name,
-+                serviceDiscovery->protocol,
-+                serviceDiscovery->port,
-+                serviceDiscovery->interfaceName,
-+                txt);
-+        if (errorCode != 0) {
-+            HAPLogError(&logObject, "%s: TXTRecordSetValue failed: %d.", __func__, errorCode);
-             HAPFatalError();
-         }
      }
 -
 -    errorCode = DNSServiceUpdateRecord(
@@ -927,8 +976,20 @@ index 1d9e949..9555494 100644
 -            0);
 -    if (errorCode != kDNSServiceErr_NoError) {
 -        HAPLogError(&logObject, "%s: DNSServiceUpdateRecord failed: %ld.", __func__, (long) errorCode);
--        HAPFatalError();
--    }
++    if (mdnsSvc) {
++        mdns_service_destroy(mdnsSvc);
++    }
++    mdnsSvc = mdnsd_register_svc(
++            mdnsDaemon,
++            serviceDiscovery->name,
++            serviceDiscovery->protocol,
++            serviceDiscovery->port,
++            NULL,
++            txt);
++    if (mdnsSvc == NULL) {
++        HAPLogError(&logObject, "%s: TXTRecordSetValue failed.", __func__);
+         HAPFatalError();
+     }
  }
  
  void HAPPlatformServiceDiscoveryStop(HAPPlatformServiceDiscoveryRef serviceDiscovery) {
@@ -941,7 +1002,8 @@ index 1d9e949..9555494 100644
 -    serviceDiscovery->dnsService = NULL;
  
 -    TXTRecordDeallocate(&serviceDiscovery->txtRecord);
-+    mdnsd_stop();
++    mdnsd_stop(mdnsDaemon);
++    mdnsDaemon = NULL;
  }
 diff --git a/PAL/POSIX/HAPPlatformSystemCommand.h b/PAL/POSIX/HAPPlatformSystemCommand.h
 index 21fe780..065bef9 100644
@@ -970,7 +1032,7 @@ index 73db9cc..1d80746 100644
  
  #if __has_feature(nullability)
 diff --git a/PAL/POSIX/HAPPlatformTCPStreamManager.c b/PAL/POSIX/HAPPlatformTCPStreamManager.c
-index 8b43db9..0f34aa6 100644
+index 8b43db9..32ffc3a 100644
 --- a/PAL/POSIX/HAPPlatformTCPStreamManager.c
 +++ b/PAL/POSIX/HAPPlatformTCPStreamManager.c
 @@ -229,7 +229,7 @@ void HAPPlatformTCPStreamManagerOpenListener(
@@ -1029,3 +1091,12 @@ index 8b43db9..0f34aa6 100644
      }
      HAPLogDebug(&logObject, "TCP stream listener port: %u.", port);
  
+@@ -476,7 +476,7 @@ HAPError HAPPlatformTCPStreamManagerAcceptTCPStream(
+     e = SetNodelay(fileDescriptor);
+     if (e != 0) {
+         HAPLogError(&logObject, "Failed to disable Nagle's algorithm for TCP stream socket.");
+-        HAPFatalError();
++//      HAPFatalError();
+     }
+ 
+     HAPPlatformFileHandleRef fileHandle;

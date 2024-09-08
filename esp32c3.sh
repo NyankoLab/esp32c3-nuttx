@@ -40,7 +40,7 @@ cd ../..
 mkdir -p netutils/mdns
 cd netutils/mdns
 cp ../../../patch/mdns/* .
-cp ../../../patch/mdns/include/mdnsd.h ../../include/netutils
+cp ../../../patch/mdns/mdnsd.h ../../include/netutils
 cd ../..
 
 cd ..

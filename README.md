@@ -26,6 +26,6 @@
 - [x] Hardware AES
 - [ ] Hardware MPI
 - [x] Hardware SHA
-- [ ] HomeKit (Apple)
+- [x] HomeKit (Apple)
 - [x] HTTP with SSL (Sony)
-- [x] mDNS (Samsung)
+- [x] mDNS (Darell Tan)

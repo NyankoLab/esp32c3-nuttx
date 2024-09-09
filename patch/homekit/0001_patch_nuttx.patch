@@ -903,7 +903,7 @@ index 24e6bee..8c3c936 100644
  };
  
 diff --git a/PAL/POSIX/HAPPlatformServiceDiscovery.c b/PAL/POSIX/HAPPlatformServiceDiscovery.c
-index 1d9e949..c88643b 100644
+index 1d9e949..0297b86 100644
 --- a/PAL/POSIX/HAPPlatformServiceDiscovery.c
 +++ b/PAL/POSIX/HAPPlatformServiceDiscovery.c
 @@ -5,6 +5,9 @@
@@ -1058,13 +1058,13 @@ index 1d9e949..c88643b 100644
 +
 +    mdnsd_clear(mdnsDaemon);
 +    mdnsd_set_hostname(mdnsDaemon, hostname, addr.s_addr);
-+    mdnsd_register_svc(
++    mdns_service_destroy(mdnsd_register_svc(
 +            mdnsDaemon,
 +            serviceDiscovery->name,
 +            serviceDiscovery->protocol,
 +            serviceDiscovery->port,
 +            NULL,
-+            txt);
++            txt));
  }
  
  void HAPPlatformServiceDiscoveryUpdateTXTRecords(
@@ -1126,13 +1126,13 @@ index 1d9e949..c88643b 100644
 +
 +    mdnsd_clear(mdnsDaemon);
 +    mdnsd_set_hostname(mdnsDaemon, hostname, addr.s_addr);
-+    mdnsd_register_svc(
++    mdns_service_destroy(mdnsd_register_svc(
 +            mdnsDaemon,
 +            serviceDiscovery->name,
 +            serviceDiscovery->protocol,
 +            serviceDiscovery->port,
 +            NULL,
-+            txt);
++            txt));
  }
  
  void HAPPlatformServiceDiscoveryStop(HAPPlatformServiceDiscoveryRef serviceDiscovery) {

@@ -20,6 +20,6 @@
 
 include $(APPDIR)/Make.defs
 
-CSRCS += mdns.c mdnsd.c
+CSRCS += tinysvcmdns/mdns.c tinysvcmdns/mdnsd.c
 
 include $(APPDIR)/Application.mk

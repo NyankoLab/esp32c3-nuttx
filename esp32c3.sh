@@ -40,7 +40,11 @@ cd ../..
 mkdir -p netutils/mdns
 cd netutils/mdns
 cp ../../../patch/mdns/* .
-cp ../../../patch/mdns/mdnsd.h ../../include/netutils
+tar xvf tinysvcmdns.tar.gz
+cd tinysvcmdns
+git apply ../0001_patch_nuttx.patch
+cp mdnsd.h ../../../include/netutils
+cd ..
 cd ../..
 
 cd ..

@@ -1,0 +1,285 @@
+--- a/mdns.c	2013-01-29 00:22:12
++++ b/mdns.c	2024-09-09 22:13:06
+@@ -290,6 +290,11 @@
+ 
+ 				txt_rec = next;
+ 			}
++			break;
++
++		case RR_AAAA:
++			if (rr->data.AAAA.addr)
++				free(rr->data.AAAA.addr);
+ 			break;
+ 
+ 		case RR_SRV:
+@@ -304,16 +309,25 @@
+ 
+ 	free(rr->name);
+ 	free(rr);
++}
++
++void rr_entry_retain(struct rr_entry *rr) {
++	rr->reference++;
++}
++
++void rr_entry_release(struct rr_entry *rr) {
++	rr->reference--;
++	if (rr->reference == 0)
++		rr_entry_destroy(rr);
+ }
+ 
+ // destroys an RR list (and optionally, items)
+-void rr_list_destroy(struct rr_list *rr, char destroy_items) {
++void rr_list_destroy(struct rr_list *rr) {
+ 	struct rr_list *rr_next;
+ 
+ 	for (; rr; rr = rr_next) {
+ 		rr_next = rr->next;
+-		if (destroy_items)
+-			rr_entry_destroy(rr->e);
++		rr_entry_release(rr->e);
+ 		free(rr);
+ 	}
+ }
+@@ -367,6 +381,7 @@
+ 		}
+ 		taile->next = node;
+ 	}
++	rr_entry_retain(rr);
+ 	return 1;
+ }
+ 
+@@ -507,7 +522,7 @@
+ 	while (g) {
+ 		struct rr_group *nextg = g->next;
+ 		free(g->name);
+-		rr_list_destroy(g->rr, 1);
++		rr_list_destroy(g->rr);
+ 		free(g);
+ 		g = nextg;
+ 	}
+@@ -548,10 +563,10 @@
+ 	// response flags
+ 	pkt->flags = MDNS_FLAG_RESP | MDNS_FLAG_AA;
+ 
+-	rr_list_destroy(pkt->rr_qn,   0);
+-	rr_list_destroy(pkt->rr_ans,  0);
+-	rr_list_destroy(pkt->rr_auth, 0);
+-	rr_list_destroy(pkt->rr_add,  0);
++	rr_list_destroy(pkt->rr_qn);
++	rr_list_destroy(pkt->rr_ans);
++	rr_list_destroy(pkt->rr_auth);
++	rr_list_destroy(pkt->rr_add);
+ 
+ 	pkt->rr_qn    = NULL;
+ 	pkt->rr_ans   = NULL;
+@@ -566,10 +581,10 @@
+ 
+ // destroys an mdns_pkt struct, including its contents
+ void mdns_pkt_destroy(struct mdns_pkt *p) {
+-	rr_list_destroy(p->rr_qn, 1);
+-	rr_list_destroy(p->rr_ans, 1);
+-	rr_list_destroy(p->rr_auth, 1);
+-	rr_list_destroy(p->rr_add, 1);
++	rr_list_destroy(p->rr_qn);
++	rr_list_destroy(p->rr_ans);
++	rr_list_destroy(p->rr_auth);
++	rr_list_destroy(p->rr_add);
+ 
+ 	free(p);
+ }
+@@ -643,7 +658,7 @@
+ 	p += sizeof(uint16_t);
+ 
+ 	if (p + rr_data_len > e) {
+-		DEBUG_PRINTF("rr_data_len goes beyond packet buffer: %lu > %lu\n", rr_data_len, e - p);
++		DEBUG_PRINTF("rr_data_len goes beyond packet buffer: %u > %u\n", rr_data_len, e - p);
+ 		rr_entry_destroy(rr);
+ 		return 0;
+ 	}
+@@ -654,7 +669,7 @@
+ 	switch (rr->type) {
+ 		case RR_A:
+ 			if (rr_data_len < sizeof(uint32_t)) {
+-				DEBUG_PRINTF("invalid rr_data_len=%lu for A record\n", rr_data_len);
++				DEBUG_PRINTF("invalid rr_data_len=%u for A record\n", rr_data_len);
+ 				parse_error = 1;
+ 				break;
+ 			}
+@@ -664,7 +679,7 @@
+ 
+ 		case RR_AAAA:
+ 			if (rr_data_len < sizeof(struct in6_addr)) {
+-				DEBUG_PRINTF("invalid rr_data_len=%lu for AAAA record\n", rr_data_len);
++				DEBUG_PRINTF("invalid rr_data_len=%u for AAAA record\n", rr_data_len);
+ 				parse_error = 1;
+ 				break;
+ 			}
+@@ -975,7 +990,9 @@
+ 
+ 			if (off >= pkt_len) {
+ 				DEBUG_PRINTF("packet buffer too small\n");
+-				return -1;
++				i = sizeof(rr_set) / sizeof(rr_set[0]);
++				off = -1;
++				break;
+ 			}
+ 		}
+ 
+--- a/mdns.h	2013-01-29 00:22:12
++++ b/mdns.h	2024-09-09 18:52:38
+@@ -46,7 +46,7 @@
+ #define DECL_MALLOC_ZERO_STRUCT(x, type) \
+ 	struct type * MALLOC_ZERO_STRUCT(x, type)
+ 
+-#ifndef NDEBUG
++#if 0
+   #define DEBUG_PRINTF(...) printf(__VA_ARGS__)
+ #else
+   #define DEBUG_PRINTF(...) ((void) 0)
+@@ -87,6 +87,8 @@
+ };
+ 
+ struct rr_entry {
++	uint32_t reference;
++
+ 	uint8_t *name;
+ 
+ 	enum rr_type {
+@@ -175,13 +177,15 @@
+ int rr_list_count(struct rr_list *rr);
+ int rr_list_append(struct rr_list **rr_head, struct rr_entry *rr);
+ struct rr_entry *rr_list_remove(struct rr_list **rr_head, struct rr_entry *rr);
+-void rr_list_destroy(struct rr_list *rr, char destroy_items);
++void rr_list_destroy(struct rr_list *rr);
+ 
+ struct rr_entry *rr_create_ptr(uint8_t *name, struct rr_entry *d_rr);
+ struct rr_entry *rr_create_srv(uint8_t *name, uint16_t port, uint8_t *target);
+ struct rr_entry *rr_create_aaaa(uint8_t *name, struct in6_addr *addr);
+ struct rr_entry *rr_create_a(uint8_t *name, uint32_t addr);
+ struct rr_entry *rr_create(uint8_t *name, enum rr_type type);
++void rr_entry_retain(struct rr_entry *rr);
++void rr_entry_release(struct rr_entry *rr);
+ void rr_set_nsec(struct rr_entry *rr_nsec, enum rr_type type);
+ void rr_add_txt(struct rr_entry *rr_txt, const char *txt);
+ 
+--- a/mdnsd.c	2013-01-29 00:22:12
++++ b/mdnsd.c	2024-09-09 22:10:45
+@@ -66,7 +66,7 @@
+ #define MDNS_ADDR "224.0.0.251"
+ #define MDNS_PORT 5353
+ 
+-#define PACKET_SIZE 65536
++#define PACKET_SIZE 1536
+ 
+ #define SERVICES_DNS_SD_NLABEL \
+ 		((uint8_t *) "\x09_services\x07_dns-sd\x04_udp\x05local")
+@@ -102,7 +102,7 @@
+ 	fprintf(stderr, "%s\n", buf);
+ }
+ 
+-static int create_recv_sock() {
++static int create_recv_sock(void) {
+ 	int sd = socket(AF_INET, SOCK_DGRAM, 0);
+ 	if (sd < 0) {
+ 		log_message(LOG_ERR, "recv socket(): %m");
+@@ -303,6 +303,7 @@
+ 				free(namestr);
+ 
+ 				// check if list item is head
++				rr_entry_release(ans->e);
+ 				if (prev_ans == NULL)
+ 					reply->rr_ans = ans->next;
+ 				else
+@@ -439,6 +440,7 @@
+ 				(struct sockaddr *) &fromaddr, &sockaddr_size);
+ 			if (recvsize < 0) {
+ 				log_message(LOG_ERR, "recv(): %m");
++				continue;
+ 			}
+ 
+ 			DEBUG_PRINTF("data from=%s size=%ld\n", inet_ntoa(fromaddr.sin_addr), (long) recvsize);
+@@ -473,6 +475,7 @@
+ 			free(namestr);
+ 
+ 			announce_srv(svr, mdns_reply, ann_e->name);
++			rr_entry_release(ann_e);
+ 
+ 			if (mdns_reply->num_ans_rr > 0) {
+ 				size_t replylen = mdns_encode_pkt(mdns_reply, pkt_buffer, PACKET_SIZE);
+@@ -521,6 +524,7 @@
+ 	// dont ask me what happens if the IP changes
+ 	assert(svr->hostname == NULL);
+ 
++	hostname = hostname ? hostname : "MyHost.local";
+ 	a_e = rr_create_a(create_nlabel(hostname), ip);
+ 
+ 	nsec_e = rr_create(create_nlabel(hostname), RR_NSEC);
+@@ -608,11 +612,11 @@
+ 
+ void mdns_service_destroy(struct mdns_service *srv) {
+ 	assert(srv != NULL);
+-	rr_list_destroy(srv->entries, 0);
++	rr_list_destroy(srv->entries);
+ 	free(srv);
+ }
+ 
+-struct mdnsd *mdnsd_start() {
++struct mdnsd *mdnsd_start(void) {
+ 	pthread_t tid;
+ 	pthread_attr_t attr;
+ 
+@@ -647,6 +651,23 @@
+ 	return server;
+ }
+ 
++void mdnsd_clear(struct mdnsd *s) {
++	assert(s != NULL);
++
++	pthread_mutex_lock(&s->data_lock);
++	rr_group_destroy(s->group);
++	rr_list_destroy(s->announce);
++	rr_list_destroy(s->services);
++
++	s->group = NULL;
++	s->announce = NULL;
++	s->services = NULL;
++	pthread_mutex_unlock(&s->data_lock);
++
++	free(s->hostname);
++	s->hostname = NULL;
++}
++
+ void mdnsd_stop(struct mdnsd *s) {
+ 	assert(s != NULL);
+ 
+@@ -666,8 +687,8 @@
+ 
+ 	pthread_mutex_destroy(&s->data_lock);
+ 	rr_group_destroy(s->group);
+-	rr_list_destroy(s->announce, 0);
+-	rr_list_destroy(s->services, 0);
++	rr_list_destroy(s->announce);
++	rr_list_destroy(s->services);
+ 
+ 	if (s->hostname)
+ 		free(s->hostname);
+--- a/mdnsd.h	2013-01-29 00:22:12
++++ b/mdnsd.h	2024-09-09 22:10:27
+@@ -33,11 +33,15 @@
+ 
+ struct mdnsd;
+ struct mdns_service;
++struct rr_entry;
+ 
+ // starts a MDNS responder instance
+ // returns NULL if unsuccessful
+-struct mdnsd *mdnsd_start();
++struct mdnsd *mdnsd_start(void);
+ 
++// clear the given MDNS responder instance
++void mdnsd_clear(struct mdnsd *s);
++
+ // stops the given MDNS responder instance
+ void mdnsd_stop(struct mdnsd *s);
+ 

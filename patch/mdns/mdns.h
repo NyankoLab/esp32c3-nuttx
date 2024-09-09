@@ -87,6 +87,8 @@ struct rr_data_aaaa {
 };
 
 struct rr_entry {
+	uint32_t reference;
+
 	uint8_t *name;
 
 	enum rr_type {
@@ -175,13 +177,15 @@ void rr_group_add(struct rr_group **group, struct rr_entry *rr);
 int rr_list_count(struct rr_list *rr);
 int rr_list_append(struct rr_list **rr_head, struct rr_entry *rr);
 struct rr_entry *rr_list_remove(struct rr_list **rr_head, struct rr_entry *rr);
-void rr_list_destroy(struct rr_list *rr, char destroy_items);
+void rr_list_destroy(struct rr_list *rr);
 
 struct rr_entry *rr_create_ptr(uint8_t *name, struct rr_entry *d_rr);
 struct rr_entry *rr_create_srv(uint8_t *name, uint16_t port, uint8_t *target);
 struct rr_entry *rr_create_aaaa(uint8_t *name, struct in6_addr *addr);
 struct rr_entry *rr_create_a(uint8_t *name, uint32_t addr);
 struct rr_entry *rr_create(uint8_t *name, enum rr_type type);
+void rr_entry_retain(struct rr_entry *rr);
+void rr_entry_release(struct rr_entry *rr);
 void rr_set_nsec(struct rr_entry *rr_nsec, enum rr_type type);
 void rr_add_txt(struct rr_entry *rr_txt, const char *txt);
 

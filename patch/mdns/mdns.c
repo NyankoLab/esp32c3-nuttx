@@ -292,6 +292,11 @@ void rr_entry_destroy(struct rr_entry *rr) {
 			}
 			break;
 
+		case RR_AAAA:
+			if (rr->data.AAAA.addr)
+				free(rr->data.AAAA.addr);
+			break;
+
 		case RR_SRV:
 			if (rr->data.SRV.target)
 				free(rr->data.SRV.target);
@@ -306,14 +311,23 @@ void rr_entry_destroy(struct rr_entry *rr) {
 	free(rr);
 }
 
+void rr_entry_retain(struct rr_entry *rr) {
+	rr->reference++;
+}
+
+void rr_entry_release(struct rr_entry *rr) {
+	rr->reference--;
+	if (rr->reference == 0)
+		rr_entry_destroy(rr);
+}
+
 // destroys an RR list (and optionally, items)
-void rr_list_destroy(struct rr_list *rr, char destroy_items) {
+void rr_list_destroy(struct rr_list *rr) {
 	struct rr_list *rr_next;
 
 	for (; rr; rr = rr_next) {
 		rr_next = rr->next;
-		if (destroy_items)
-			rr_entry_destroy(rr->e);
+		rr_entry_release(rr->e);
 		free(rr);
 	}
 }
@@ -367,6 +381,7 @@ int rr_list_append(struct rr_list **rr_head, struct rr_entry *rr) {
 		}
 		taile->next = node;
 	}
+	rr_entry_retain(rr);
 	return 1;
 }
 
@@ -507,7 +522,7 @@ void rr_group_destroy(struct rr_group *group) {
 	while (g) {
 		struct rr_group *nextg = g->next;
 		free(g->name);
-		rr_list_destroy(g->rr, 1);
+		rr_list_destroy(g->rr);
 		free(g);
 		g = nextg;
 	}
@@ -548,10 +563,10 @@ void mdns_init_reply(struct mdns_pkt *pkt, uint16_t id) {
 	// response flags
 	pkt->flags = MDNS_FLAG_RESP | MDNS_FLAG_AA;
 
-	rr_list_destroy(pkt->rr_qn,   0);
-	rr_list_destroy(pkt->rr_ans,  0);
-	rr_list_destroy(pkt->rr_auth, 0);
-	rr_list_destroy(pkt->rr_add,  0);
+	rr_list_destroy(pkt->rr_qn);
+	rr_list_destroy(pkt->rr_ans);
+	rr_list_destroy(pkt->rr_auth);
+	rr_list_destroy(pkt->rr_add);
 
 	pkt->rr_qn    = NULL;
 	pkt->rr_ans   = NULL;
@@ -566,10 +581,10 @@ void mdns_init_reply(struct mdns_pkt *pkt, uint16_t id) {
 
 // destroys an mdns_pkt struct, including its contents
 void mdns_pkt_destroy(struct mdns_pkt *p) {
-	rr_list_destroy(p->rr_qn, 1);
-	rr_list_destroy(p->rr_ans, 1);
-	rr_list_destroy(p->rr_auth, 1);
-	rr_list_destroy(p->rr_add, 1);
+	rr_list_destroy(p->rr_qn);
+	rr_list_destroy(p->rr_ans);
+	rr_list_destroy(p->rr_auth);
+	rr_list_destroy(p->rr_add);
 
 	free(p);
 }
@@ -582,7 +597,7 @@ static size_t mdns_parse_qn(uint8_t *pkt_buf, size_t pkt_len, size_t off,
 	const uint8_t *p = pkt_buf + off;
 	struct rr_entry *rr;
 	uint8_t *name;
-   
+
 	assert(pkt != NULL);
 
 	rr = malloc(sizeof(struct rr_entry)); 
@@ -600,7 +615,7 @@ static size_t mdns_parse_qn(uint8_t *pkt_buf, size_t pkt_len, size_t off,
 	p += sizeof(uint16_t);
 
 	rr_list_append(&pkt->rr_qn, rr);
-	
+
 	return p - (pkt_buf + off);
 }
 
@@ -975,7 +990,9 @@ size_t mdns_encode_pkt(struct mdns_pkt *answer, uint8_t *pkt_buf, size_t pkt_len
 
 			if (off >= pkt_len) {
 				DEBUG_PRINTF("packet buffer too small\n");
-				return -1;
+				i = sizeof(rr_set) / sizeof(rr_set[0]);
+				off = -1;
+				break;
 			}
 		}
 

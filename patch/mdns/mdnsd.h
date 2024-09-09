@@ -32,12 +32,14 @@
 #include <stdint.h>
 
 struct mdnsd;
-struct mdns_service;
 struct rr_entry;
 
 // starts a MDNS responder instance
 // returns NULL if unsuccessful
 struct mdnsd *mdnsd_start(void);
+
+// clear the given MDNS responder instance
+void mdnsd_clear(struct mdnsd *s);
 
 // stops the given MDNS responder instance
 void mdnsd_stop(struct mdnsd *s);
@@ -49,11 +51,7 @@ void mdnsd_set_hostname(struct mdnsd *svr, const char *hostname, uint32_t ip);
 void mdnsd_add_rr(struct mdnsd *svr, struct rr_entry *rr);
 
 // registers a service with the MDNS responder instance
-struct mdns_service *mdnsd_register_svc(struct mdnsd *svr, const char *instance_name, 
+void mdnsd_register_svc(struct mdnsd *svr, const char *instance_name,
 		const char *type, uint16_t port, const char *hostname, const char *txt[]);
-
-// destroys the mdns_service struct returned by mdnsd_register_svc()
-void mdns_service_destroy(struct mdns_service *srv);
-
 
 #endif/*!__MDNSD_H__*/

@@ -83,10 +83,6 @@ struct mdnsd {
 	uint8_t *hostname;
 };
 
-struct mdns_service {
-	struct rr_list *entries;
-};
-
 /////////////////////////////////
 
 
@@ -303,6 +299,7 @@ static int process_mdns_pkt(struct mdnsd *svr, struct mdns_pkt *pkt, struct mdns
 				free(namestr);
 
 				// check if list item is head
+				rr_entry_release(ans->e);
 				if (prev_ans == NULL)
 					reply->rr_ans = ans->next;
 				else
@@ -439,6 +436,7 @@ static void main_loop(struct mdnsd *svr) {
 				(struct sockaddr *) &fromaddr, &sockaddr_size);
 			if (recvsize < 0) {
 				log_message(LOG_ERR, "recv(): %m");
+				continue;
 			}
 
 			DEBUG_PRINTF("data from=%s size=%ld\n", inet_ntoa(fromaddr.sin_addr), (long) recvsize);
@@ -458,21 +456,28 @@ static void main_loop(struct mdnsd *svr) {
 		// send out announces
 		while (1) {
 			struct rr_entry *ann_e = NULL;
+			uint8_t *name = NULL;
 
 			// extract from head of list
 			pthread_mutex_lock(&svr->data_lock);
-			if (svr->announce) 
+			if (svr->announce) {
 				ann_e = rr_list_remove(&svr->announce, svr->announce->e);
+				if (ann_e) {
+					name = dup_nlabel(ann_e->name);
+					rr_entry_release(ann_e);
+				}
+			}
 			pthread_mutex_unlock(&svr->data_lock);
 
-			if (! ann_e)
+			if (!ann_e)
 				break;
 
-			char *namestr = nlabel_to_str(ann_e->name);
+			char *namestr = nlabel_to_str(name);
 			DEBUG_PRINTF("sending announce for %s\n", namestr);
 			free(namestr);
 
-			announce_srv(svr, mdns_reply, ann_e->name);
+			announce_srv(svr, mdns_reply, name);
+			free(name);
 
 			if (mdns_reply->num_ans_rr > 0) {
 				size_t replylen = mdns_encode_pkt(mdns_reply, pkt_buffer, PACKET_SIZE);
@@ -521,7 +526,7 @@ void mdnsd_set_hostname(struct mdnsd *svr, const char *hostname, uint32_t ip) {
 	// dont ask me what happens if the IP changes
 	assert(svr->hostname == NULL);
 
-        hostname = hostname ? hostname : "MyHost.local";
+	hostname = hostname ? hostname : "MyHost.local";
 	a_e = rr_create_a(create_nlabel(hostname), ip);
 
 	nsec_e = rr_create(create_nlabel(hostname), RR_NSEC);
@@ -540,7 +545,7 @@ void mdnsd_add_rr(struct mdnsd *svr, struct rr_entry *rr) {
 	pthread_mutex_unlock(&svr->data_lock);
 }
 
-struct mdns_service *mdnsd_register_svc(struct mdnsd *svr, const char *instance_name, 
+void mdnsd_register_svc(struct mdnsd *svr, const char *instance_name,
 		const char *type, uint16_t port, const char *hostname, const char *txt[]) {
 	struct rr_entry *txt_e = NULL, 
 					*srv_e = NULL, 
@@ -548,8 +553,6 @@ struct mdns_service *mdnsd_register_svc(struct mdnsd *svr, const char *instance_
 					*bptr_e = NULL;
 	uint8_t *target;
 	uint8_t *inst_nlabel, *type_nlabel, *nlabel;
-	struct mdns_service *service = malloc(sizeof(struct mdns_service));
-	memset(service, 0, sizeof(struct mdns_service));
 
 	// combine service name
 	type_nlabel = create_nlabel(type);
@@ -559,7 +562,6 @@ struct mdns_service *mdnsd_register_svc(struct mdnsd *svr, const char *instance_
 	// create TXT record
 	if (txt && *txt) {
 		txt_e = rr_create(dup_nlabel(nlabel), RR_TXT);
-		rr_list_append(&service->entries, txt_e);
 
 		// add TXTs
 		for (; *txt; txt++) 
@@ -573,7 +575,6 @@ struct mdns_service *mdnsd_register_svc(struct mdnsd *svr, const char *instance_
 				dup_nlabel(svr->hostname);
 
 	srv_e = rr_create_srv(dup_nlabel(nlabel), port, target);
-	rr_list_append(&service->entries, srv_e);
 
 	// create PTR record for type
 	ptr_e = rr_create_ptr(type_nlabel, srv_e);
@@ -603,14 +604,6 @@ struct mdns_service *mdnsd_register_svc(struct mdnsd *svr, const char *instance_
 
 	// notify server
 	write_pipe(svr->notify_pipe[1], ".", 1);
-
-	return service;
-}
-
-void mdns_service_destroy(struct mdns_service *srv) {
-	assert(srv != NULL);
-	rr_list_destroy(srv->entries, 0);
-	free(srv);
 }
 
 struct mdnsd *mdnsd_start(void) {
@@ -648,6 +641,23 @@ struct mdnsd *mdnsd_start(void) {
 	return server;
 }
 
+void mdnsd_clear(struct mdnsd *s) {
+	assert(s != NULL);
+
+	pthread_mutex_lock(&s->data_lock);
+	rr_group_destroy(s->group);
+	rr_list_destroy(s->announce);
+	rr_list_destroy(s->services);
+
+	s->group = NULL;
+	s->announce = NULL;
+	s->services = NULL;
+	pthread_mutex_unlock(&s->data_lock);
+
+	free(s->hostname);
+	s->hostname = NULL;
+}
+
 void mdnsd_stop(struct mdnsd *s) {
 	assert(s != NULL);
 
@@ -667,8 +677,8 @@ void mdnsd_stop(struct mdnsd *s) {
 
 	pthread_mutex_destroy(&s->data_lock);
 	rr_group_destroy(s->group);
-	rr_list_destroy(s->announce, 0);
-	rr_list_destroy(s->services, 0);
+	rr_list_destroy(s->announce);
+	rr_list_destroy(s->services);
 
 	if (s->hostname)
 		free(s->hostname);

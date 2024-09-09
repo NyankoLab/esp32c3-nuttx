@@ -53,6 +53,148 @@ index 89f40a1..43a1bc6 100644
  
  #if __has_feature(nullability)
  #pragma clang assume_nonnull begin
+diff --git a/HAP/HAPIPAccessoryServer.c b/HAP/HAPIPAccessoryServer.c
+index 025cb86..8dac16f 100644
+--- a/HAP/HAPIPAccessoryServer.c
++++ b/HAP/HAPIPAccessoryServer.c
+@@ -8,6 +8,7 @@
+ 
+ #if HAP_IP
+ 
++#include <stdlib.h>
+ #include "util_base64.h"
+ 
+ static const HAPLogObject logObject = { .subsystem = kHAP_LogSubsystem, .category = "IPAccessoryServer" };
+@@ -264,10 +265,25 @@ static void HAPIPSessionDestroy(HAPIPSession* ipSession) {
+     HAPLogDebug(&logObject, "session:%p:releasing session", (const void*) session);
+ 
+     HAPRawBufferZero(&ipSession->descriptor, sizeof ipSession->descriptor);
+-    HAPRawBufferZero(ipSession->inboundBuffer.bytes, ipSession->inboundBuffer.numBytes);
+-    HAPRawBufferZero(ipSession->outboundBuffer.bytes, ipSession->outboundBuffer.numBytes);
+-    HAPRawBufferZero(
+-            ipSession->eventNotifications, ipSession->numEventNotifications * sizeof *ipSession->eventNotifications);
++    if ((size_t)ipSession->inboundBuffer.bytes & 1) {
++        free((void*)((size_t)ipSession->inboundBuffer.bytes & ~1));
++        ipSession->inboundBuffer.bytes = NULL;
++    } else {
++        HAPRawBufferZero(ipSession->inboundBuffer.bytes, ipSession->inboundBuffer.numBytes);
++    }
++    if ((size_t)ipSession->outboundBuffer.bytes & 1) {
++        free((void*)((size_t)ipSession->outboundBuffer.bytes & ~1));
++        ipSession->outboundBuffer.bytes = NULL;
++    } else {
++        HAPRawBufferZero(ipSession->outboundBuffer.bytes, ipSession->outboundBuffer.numBytes);
++    }
++    if ((size_t)ipSession->eventNotifications & 1) {
++        free((void*)((size_t)ipSession->eventNotifications & ~1));
++        ipSession->eventNotifications = NULL;
++    } else {
++        HAPRawBufferZero(
++                ipSession->eventNotifications, ipSession->numEventNotifications * sizeof *ipSession->eventNotifications);
++    }
+ }
+ 
+ static void collect_garbage(HAPAccessoryServerRef* server_) {
+@@ -3667,6 +3683,30 @@ static void HandlePendingTCPStream(HAPPlatformTCPStreamManagerRef tcpStreamManag
+         return;
+     }
+ 
++    if (!ipSession->inboundBuffer.bytes) {
++        ipSession->inboundBuffer.bytes = malloc(ipSession->inboundBuffer.numBytes);
++        if (ipSession->inboundBuffer.bytes) {
++            ipSession->inboundBuffer.bytes += 1;
++        }
++    }
++    if (!ipSession->outboundBuffer.bytes) {
++        ipSession->outboundBuffer.bytes = malloc(ipSession->outboundBuffer.numBytes);
++        if (ipSession->outboundBuffer.bytes) {
++            ipSession->outboundBuffer.bytes += 1;
++        }
++    }
++    if (!ipSession->eventNotifications) {
++        ipSession->eventNotifications = malloc(ipSession->numEventNotifications * sizeof *ipSession->eventNotifications);
++        if (ipSession->eventNotifications) {
++            ipSession->eventNotifications += 1;
++        }
++    }
++    if (!ipSession->inboundBuffer.bytes || !ipSession->outboundBuffer.bytes || !ipSession->eventNotifications) {
++        HAPLog(&logObject, "Failed to allocate buffer.");
++        HAPPlatformTCPStreamClose(HAPNonnull(server->platform.ip.tcpStreamManager), tcpStream);
++        return;
++    }
++
+     HAPIPSessionDescriptor* t = (HAPIPSessionDescriptor*) &ipSession->descriptor;
+     HAPRawBufferZero(t, sizeof *t);
+     t->server = server_;
+@@ -3679,13 +3719,13 @@ static void HandlePendingTCPStream(HAPPlatformTCPStreamManagerRef tcpStreamManag
+     t->inboundBuffer.position = 0;
+     t->inboundBuffer.limit = ipSession->inboundBuffer.numBytes;
+     t->inboundBuffer.capacity = ipSession->inboundBuffer.numBytes;
+-    t->inboundBuffer.data = ipSession->inboundBuffer.bytes;
++    t->inboundBuffer.data = (void*)((size_t)ipSession->inboundBuffer.bytes & ~1);
+     t->inboundBufferMark = 0;
+     t->outboundBuffer.position = 0;
+     t->outboundBuffer.limit = ipSession->outboundBuffer.numBytes;
+     t->outboundBuffer.capacity = ipSession->outboundBuffer.numBytes;
+-    t->outboundBuffer.data = ipSession->outboundBuffer.bytes;
+-    t->eventNotifications = ipSession->eventNotifications;
++    t->outboundBuffer.data = (void*)((size_t)ipSession->outboundBuffer.bytes & ~1);
++    t->eventNotifications = (void*)((size_t)ipSession->eventNotifications & ~1);
+     t->maxEventNotifications = ipSession->numEventNotifications;
+     t->numEventNotifications = 0;
+     t->numEventNotificationFlags = 0;
+@@ -4069,23 +4109,23 @@ static void Create(HAPAccessoryServerRef* server_, const HAPAccessoryServerOptio
+     HAPPrecondition(storage->scratchBuffer.bytes);
+     HAPPrecondition(storage->sessions);
+     HAPPrecondition(storage->numSessions);
+-    for (size_t i = 0; i < storage->numSessions; i++) {
+-        HAPIPSession* session = &storage->sessions[i];
+-        HAPPrecondition(session->inboundBuffer.bytes);
+-        HAPPrecondition(session->outboundBuffer.bytes);
+-        HAPPrecondition(session->eventNotifications);
+-    }
++//  for (size_t i = 0; i < storage->numSessions; i++) {
++//      HAPIPSession* session = &storage->sessions[i];
++//      HAPPrecondition(session->inboundBuffer.bytes);
++//      HAPPrecondition(session->outboundBuffer.bytes);
++//      HAPPrecondition(session->eventNotifications);
++//  }
+     HAPRawBufferZero(storage->readContexts, storage->numReadContexts * sizeof *storage->readContexts);
+     HAPRawBufferZero(storage->writeContexts, storage->numWriteContexts * sizeof *storage->writeContexts);
+     HAPRawBufferZero(storage->scratchBuffer.bytes, storage->scratchBuffer.numBytes);
+     for (size_t i = 0; i < storage->numSessions; i++) {
+         HAPIPSession* ipSession = &storage->sessions[i];
+         HAPRawBufferZero(&ipSession->descriptor, sizeof ipSession->descriptor);
+-        HAPRawBufferZero(ipSession->inboundBuffer.bytes, ipSession->inboundBuffer.numBytes);
+-        HAPRawBufferZero(ipSession->outboundBuffer.bytes, ipSession->outboundBuffer.numBytes);
+-        HAPRawBufferZero(
+-                ipSession->eventNotifications,
+-                ipSession->numEventNotifications * sizeof *ipSession->eventNotifications);
++//      HAPRawBufferZero(ipSession->inboundBuffer.bytes, ipSession->inboundBuffer.numBytes);
++//      HAPRawBufferZero(ipSession->outboundBuffer.bytes, ipSession->outboundBuffer.numBytes);
++//      HAPRawBufferZero(
++//              ipSession->eventNotifications,
++//              ipSession->numEventNotifications * sizeof *ipSession->eventNotifications);
+     }
+     server->ip.storage = options->ip.accessoryServerStorage;
+ 
+@@ -4104,11 +4144,11 @@ static void PrepareStart(HAPAccessoryServerRef* server_) {
+     for (size_t i = 0; i < storage->numSessions; i++) {
+         HAPIPSession* ipSession = &storage->sessions[i];
+         HAPRawBufferZero(&ipSession->descriptor, sizeof ipSession->descriptor);
+-        HAPRawBufferZero(ipSession->inboundBuffer.bytes, ipSession->inboundBuffer.numBytes);
+-        HAPRawBufferZero(ipSession->outboundBuffer.bytes, ipSession->outboundBuffer.numBytes);
+-        HAPRawBufferZero(
+-                ipSession->eventNotifications,
+-                ipSession->numEventNotifications * sizeof *ipSession->eventNotifications);
++//      HAPRawBufferZero(ipSession->inboundBuffer.bytes, ipSession->inboundBuffer.numBytes);
++//      HAPRawBufferZero(ipSession->outboundBuffer.bytes, ipSession->outboundBuffer.numBytes);
++//      HAPRawBufferZero(
++//              ipSession->eventNotifications,
++//              ipSession->numEventNotifications * sizeof *ipSession->eventNotifications);
+     }
+ }
+ 
 diff --git a/HAP/HAPJSONUtils.h b/HAP/HAPJSONUtils.h
 index a776c47..d881492 100644
 --- a/HAP/HAPJSONUtils.h
@@ -761,7 +903,7 @@ index 24e6bee..8c3c936 100644
  };
  
 diff --git a/PAL/POSIX/HAPPlatformServiceDiscovery.c b/PAL/POSIX/HAPPlatformServiceDiscovery.c
-index 1d9e949..cd95d1d 100644
+index 1d9e949..c88643b 100644
 --- a/PAL/POSIX/HAPPlatformServiceDiscovery.c
 +++ b/PAL/POSIX/HAPPlatformServiceDiscovery.c
 @@ -5,6 +5,9 @@
@@ -774,7 +916,7 @@ index 1d9e949..cd95d1d 100644
  #include <unistd.h>
  
  #include "HAPPlatform+Init.h"
-@@ -12,40 +15,10 @@
+@@ -12,40 +15,9 @@
  
  static const HAPLogObject logObject = { .subsystem = kHAPPlatform_LogSubsystem, .category = "ServiceDiscovery" };
  
@@ -799,7 +941,6 @@ index 1d9e949..cd95d1d 100644
 -    }
 -}
 +static struct mdnsd* mdnsDaemon;
-+static struct mdns_service* mdnsSvc;
  
 -static void HandleServiceRegisterReply(
 -        DNSServiceRef service HAP_UNUSED,
@@ -818,25 +959,16 @@ index 1d9e949..cd95d1d 100644
  
  void HAPPlatformServiceDiscoveryCreate(
          HAPPlatformServiceDiscoveryRef serviceDiscovery,
-@@ -67,7 +40,16 @@ void HAPPlatformServiceDiscoveryCreate(
+@@ -67,7 +39,7 @@ void HAPPlatformServiceDiscoveryCreate(
                  serviceDiscovery->interfaceName, HAPNonnull(options->interfaceName), numInterfaceNameBytes);
      }
  
 -    serviceDiscovery->dnsService = NULL;
-+    char hostname[32];
-+    gethostname(hostname, 32);
-+
-+    struct in_addr addr = {};
-+    int sock = wapi_make_socket();
-+    wapi_get_ip(sock, serviceDiscovery->interfaceName[0] ? serviceDiscovery->interfaceName : "wlan0", &addr);
-+    close(sock);
-+
 +    mdnsDaemon = mdnsd_start();
-+    mdnsd_set_hostname(mdnsDaemon, hostname, addr.s_addr);
  }
  
  void HAPPlatformServiceDiscoveryRegister(
-@@ -78,14 +60,10 @@ void HAPPlatformServiceDiscoveryRegister(
+@@ -78,14 +50,10 @@ void HAPPlatformServiceDiscoveryRegister(
          HAPPlatformServiceDiscoveryTXTRecord* txtRecords,
          size_t numTXTRecords) {
      HAPPrecondition(serviceDiscovery);
@@ -851,7 +983,7 @@ index 1d9e949..cd95d1d 100644
      uint32_t interfaceIndex;
      if (serviceDiscovery->interfaceName[0]) {
          unsigned int i = if_nametoindex(serviceDiscovery->interfaceName);
-@@ -103,10 +81,11 @@ void HAPPlatformServiceDiscoveryRegister(
+@@ -103,10 +71,11 @@ void HAPPlatformServiceDiscoveryRegister(
      HAPLogDebug(&logObject, "protocol: \"%s\"", protocol);
      HAPLogDebug(&logObject, "port: %u", port);
  
@@ -867,7 +999,7 @@ index 1d9e949..cd95d1d 100644
      for (size_t i = 0; i < numTXTRecords; i++) {
          HAPPrecondition(!txtRecords[i].value.numBytes || txtRecords[i].value.bytes);
          HAPPrecondition(txtRecords[i].value.numBytes <= UINT8_MAX);
-@@ -121,47 +100,26 @@ void HAPPlatformServiceDiscoveryRegister(
+@@ -121,47 +90,30 @@ void HAPPlatformServiceDiscoveryRegister(
          } else {
              HAPLogDebug(&logObject, "txtRecord[%lu]: \"%s\"", (unsigned long) i, txtRecords[i].key);
          }
@@ -882,9 +1014,7 @@ index 1d9e949..cd95d1d 100644
 -            HAPLogError(&logObject, "%s: TXTRecordSetValue failed: %ld.", __func__, (long) errorCode);
 -            HAPFatalError();
 -        }
-+                txtRecords[i].value.numBytes,
-+                (char*) txtRecords[i].value.bytes);
-     }
+-    }
 -
 -    errorCode = DNSServiceRegister(
 -            &serviceDiscovery->dnsService,
@@ -902,10 +1032,10 @@ index 1d9e949..cd95d1d 100644
 -    if (errorCode != kDNSServiceErr_NoError) {
 -        HAPLogError(&logObject, "%s: DNSServiceRegister failed: %ld.", __func__, (long) errorCode);
 -        HAPFatalError();
-+    if (mdnsSvc) {
-+        mdns_service_destroy(mdnsSvc);
++                txtRecords[i].value.numBytes,
++                (char*) txtRecords[i].value.bytes);
      }
--
+ 
 -    err = HAPPlatformFileHandleRegister(
 -            &serviceDiscovery->fileHandle,
 -            DNSServiceRefSockFD(serviceDiscovery->dnsService),
@@ -915,22 +1045,30 @@ index 1d9e949..cd95d1d 100644
 -            serviceDiscovery);
 -    if (err) {
 -        HAPLogError(&logObject, "%s: HAPPlatformFileHandleRegister failed: %u.", __func__, err);
-+    mdnsSvc = mdnsd_register_svc(
+-        HAPFatalError();
+-    }
+-    HAPAssert(serviceDiscovery->fileHandle);
++    char hostname[32];
++    gethostname(hostname, 32);
++
++    struct in_addr addr = {};
++    int sock = wapi_make_socket();
++    wapi_get_ip(sock, serviceDiscovery->interfaceName[0] ? serviceDiscovery->interfaceName : "wlan0", &addr);
++    close(sock);
++
++    mdnsd_clear(mdnsDaemon);
++    mdnsd_set_hostname(mdnsDaemon, hostname, addr.s_addr);
++    mdnsd_register_svc(
 +            mdnsDaemon,
 +            serviceDiscovery->name,
 +            serviceDiscovery->protocol,
 +            serviceDiscovery->port,
 +            NULL,
 +            txt);
-+    if (mdnsSvc == NULL) {
-+        HAPLogError(&logObject, "%s: TXTRecordSetValue failed.", __func__);
-         HAPFatalError();
-     }
--    HAPAssert(serviceDiscovery->fileHandle);
  }
  
  void HAPPlatformServiceDiscoveryUpdateTXTRecords(
-@@ -169,16 +127,9 @@ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
+@@ -169,16 +121,9 @@ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
          HAPPlatformServiceDiscoveryTXTRecord* txtRecords,
          size_t numTXTRecords) {
      HAPPrecondition(serviceDiscovery);
@@ -948,7 +1086,7 @@ index 1d9e949..cd95d1d 100644
      for (size_t i = 0; i < numTXTRecords; i++) {
          HAPPrecondition(!txtRecords[i].value.numBytes || txtRecords[i].value.bytes);
          HAPPrecondition(txtRecords[i].value.numBytes <= UINT8_MAX);
-@@ -193,38 +144,31 @@ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
+@@ -193,38 +138,35 @@ void HAPPlatformServiceDiscoveryUpdateTXTRecords(
          } else {
              HAPLogDebug(&logObject, "txtRecord[%lu]: \"%s\"", (unsigned long) i, txtRecords[i].key);
          }
@@ -966,7 +1104,7 @@ index 1d9e949..cd95d1d 100644
 +                txtRecords[i].value.numBytes,
 +                (char*) txtRecords[i].value.bytes);
      }
--
+ 
 -    errorCode = DNSServiceUpdateRecord(
 -            serviceDiscovery->dnsService,
 -            /* recordRef: */ NULL,
@@ -976,20 +1114,25 @@ index 1d9e949..cd95d1d 100644
 -            0);
 -    if (errorCode != kDNSServiceErr_NoError) {
 -        HAPLogError(&logObject, "%s: DNSServiceUpdateRecord failed: %ld.", __func__, (long) errorCode);
-+    if (mdnsSvc) {
-+        mdns_service_destroy(mdnsSvc);
-+    }
-+    mdnsSvc = mdnsd_register_svc(
+-        HAPFatalError();
+-    }
++    char hostname[32];
++    gethostname(hostname, 32);
++
++    struct in_addr addr = {};
++    int sock = wapi_make_socket();
++    wapi_get_ip(sock, serviceDiscovery->interfaceName[0] ? serviceDiscovery->interfaceName : "wlan0", &addr);
++    close(sock);
++
++    mdnsd_clear(mdnsDaemon);
++    mdnsd_set_hostname(mdnsDaemon, hostname, addr.s_addr);
++    mdnsd_register_svc(
 +            mdnsDaemon,
 +            serviceDiscovery->name,
 +            serviceDiscovery->protocol,
 +            serviceDiscovery->port,
 +            NULL,
 +            txt);
-+    if (mdnsSvc == NULL) {
-+        HAPLogError(&logObject, "%s: TXTRecordSetValue failed.", __func__);
-         HAPFatalError();
-     }
  }
  
  void HAPPlatformServiceDiscoveryStop(HAPPlatformServiceDiscoveryRef serviceDiscovery) {

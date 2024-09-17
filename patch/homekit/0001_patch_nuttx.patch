@@ -53,8 +53,22 @@ index 89f40a1..43a1bc6 100644
  
  #if __has_feature(nullability)
  #pragma clang assume_nonnull begin
+diff --git a/HAP/HAPAccessoryServer.c b/HAP/HAPAccessoryServer.c
+index 7b64030..61f7acf 100644
+--- a/HAP/HAPAccessoryServer.c
++++ b/HAP/HAPAccessoryServer.c
+@@ -536,8 +536,7 @@ static void HAPAccessoryServerPrepareStart(
+             uint32_t previousMinor = HAPReadLittleUInt32(&bytes[4]);
+             uint32_t previousRevision = HAPReadLittleUInt32(&bytes[8]);
+             if (major != previousMajor || minor != previousMinor || revision != previousRevision) {
+-                if (major < previousMajor || (major == previousMajor && minor < previousMinor) ||
+-                    (major == previousMajor && minor == previousMinor && revision < previousRevision)) {
++                if (major < previousMajor || (major == previousMajor && minor < previousMinor)) {
+                     HAPLogError(
+                             &logObject,
+                             "[%lu.%lu.%lu > %lu.%lu.%lu] Firmware must not be downgraded! Not starting "
 diff --git a/HAP/HAPIPAccessoryServer.c b/HAP/HAPIPAccessoryServer.c
-index 025cb86..8dac16f 100644
+index 025cb86..6f33845 100644
 --- a/HAP/HAPIPAccessoryServer.c
 +++ b/HAP/HAPIPAccessoryServer.c
 @@ -8,6 +8,7 @@
@@ -100,21 +114,21 @@ index 025cb86..8dac16f 100644
      }
  
 +    if (!ipSession->inboundBuffer.bytes) {
-+        ipSession->inboundBuffer.bytes = malloc(ipSession->inboundBuffer.numBytes);
++        ipSession->inboundBuffer.bytes = calloc(1, ipSession->inboundBuffer.numBytes);
 +        if (ipSession->inboundBuffer.bytes) {
-+            ipSession->inboundBuffer.bytes += 1;
++            ipSession->inboundBuffer.bytes = (void*)((size_t)ipSession->inboundBuffer.bytes + 1);
 +        }
 +    }
 +    if (!ipSession->outboundBuffer.bytes) {
-+        ipSession->outboundBuffer.bytes = malloc(ipSession->outboundBuffer.numBytes);
++        ipSession->outboundBuffer.bytes = calloc(1, ipSession->outboundBuffer.numBytes);
 +        if (ipSession->outboundBuffer.bytes) {
-+            ipSession->outboundBuffer.bytes += 1;
++            ipSession->outboundBuffer.bytes = (void*)((size_t)ipSession->outboundBuffer.bytes + 1);
 +        }
 +    }
 +    if (!ipSession->eventNotifications) {
-+        ipSession->eventNotifications = malloc(ipSession->numEventNotifications * sizeof *ipSession->eventNotifications);
++        ipSession->eventNotifications = calloc(ipSession->numEventNotifications, sizeof *ipSession->eventNotifications);
 +        if (ipSession->eventNotifications) {
-+            ipSession->eventNotifications += 1;
++            ipSession->eventNotifications = (HAPIPEventNotificationRef*)((size_t)ipSession->eventNotifications + 1);
 +        }
 +    }
 +    if (!ipSession->inboundBuffer.bytes || !ipSession->outboundBuffer.bytes || !ipSession->eventNotifications) {
@@ -1175,7 +1189,7 @@ index 73db9cc..1d80746 100644
  
  #if __has_feature(nullability)
 diff --git a/PAL/POSIX/HAPPlatformTCPStreamManager.c b/PAL/POSIX/HAPPlatformTCPStreamManager.c
-index 8b43db9..32ffc3a 100644
+index 8b43db9..87a0089 100644
 --- a/PAL/POSIX/HAPPlatformTCPStreamManager.c
 +++ b/PAL/POSIX/HAPPlatformTCPStreamManager.c
 @@ -229,7 +229,7 @@ void HAPPlatformTCPStreamManagerOpenListener(
@@ -1234,7 +1248,23 @@ index 8b43db9..32ffc3a 100644
      }
      HAPLogDebug(&logObject, "TCP stream listener port: %u.", port);
  
-@@ -476,7 +476,7 @@ HAPError HAPPlatformTCPStreamManagerAcceptTCPStream(
+@@ -380,6 +380,7 @@ void HAPPlatformTCPStreamManagerCloseListener(HAPPlatformTCPStreamManagerRef tcp
+     HAPLogDebug(&logObject, "shutdown(%d, SHUT_RDWR);", tcpStreamManager->tcpStreamListener.fileDescriptor);
+     e = shutdown(tcpStreamManager->tcpStreamListener.fileDescriptor, SHUT_RDWR);
+     if (e != 0) {
++#if 0
+         int _errno = errno;
+         HAPAssert(e == -1);
+         HAPPlatformLogPOSIXError(
+@@ -389,6 +390,7 @@ void HAPPlatformTCPStreamManagerCloseListener(HAPPlatformTCPStreamManagerRef tcp
+                 __func__,
+                 HAP_FILE,
+                 __LINE__);
++#endif
+     }
+ 
+     HAPLogDebug(&logObject, "close(%d);", tcpStreamManager->tcpStreamListener.fileDescriptor);
+@@ -476,7 +478,7 @@ HAPError HAPPlatformTCPStreamManagerAcceptTCPStream(
      e = SetNodelay(fileDescriptor);
      if (e != 0) {
          HAPLogError(&logObject, "Failed to disable Nagle's algorithm for TCP stream socket.");
@@ -1243,3 +1273,35 @@ index 8b43db9..32ffc3a 100644
      }
  
      HAPPlatformFileHandleRef fileHandle;
+@@ -534,6 +536,7 @@ void HAPPlatformTCPStreamCloseOutput(
+     HAPLogDebug(&logObject, "shutdown(%d, SHUT_WR);", tcpStream->fileDescriptor);
+     int e = shutdown(tcpStream->fileDescriptor, SHUT_WR);
+     if (e != 0) {
++#if 0
+         int _errno = errno;
+         HAPAssert(e == -1);
+         HAPPlatformLogPOSIXError(
+@@ -543,6 +546,7 @@ void HAPPlatformTCPStreamCloseOutput(
+                 __func__,
+                 HAP_FILE,
+                 __LINE__);
++#endif
+     }
+ }
+ 
+@@ -564,6 +568,7 @@ void HAPPlatformTCPStreamClose(HAPPlatformTCPStreamManagerRef tcpStreamManager,
+     HAPLogDebug(&logObject, "shutdown(%d, SHUT_RDWR);", tcpStream->fileDescriptor);
+     e = shutdown(tcpStream->fileDescriptor, SHUT_RDWR);
+     if (e != 0) {
++#if 0
+         int _errno = errno;
+         HAPAssert(e == -1);
+         HAPPlatformLogPOSIXError(
+@@ -573,6 +578,7 @@ void HAPPlatformTCPStreamClose(HAPPlatformTCPStreamManagerRef tcpStreamManager,
+                 __func__,
+                 HAP_FILE,
+                 __LINE__);
++#endif
+     }
+ 
+     HAPLogDebug(&logObject, "close(%d);", tcpStream->fileDescriptor);

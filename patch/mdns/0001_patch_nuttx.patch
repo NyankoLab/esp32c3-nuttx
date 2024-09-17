@@ -229,6 +229,14 @@
  	pthread_t tid;
  	pthread_attr_t attr;
  
+@@ -648,6 +648,7 @@
+ 		free(server);
+ 		return NULL;
+ 	}
++	pthread_setname_np(tid, "mDNS");
+
+ 	return server;
+ }
 @@ -647,6 +651,23 @@
  	return server;
  }

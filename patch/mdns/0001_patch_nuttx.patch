@@ -12,7 +12,7 @@
  			break;
  
  		case RR_SRV:
-@@ -304,16 +309,25 @@
+@@ -322,16 +327,25 @@
  
  	free(rr->name);
  	free(rr);
@@ -41,7 +41,7 @@
  		free(rr);
  	}
  }
-@@ -367,6 +381,7 @@
+@@ -385,6 +399,7 @@
  		}
  		taile->next = node;
  	}
@@ -49,7 +49,7 @@
  	return 1;
  }
  
-@@ -507,7 +522,7 @@
+@@ -525,7 +540,7 @@
  	while (g) {
  		struct rr_group *nextg = g->next;
  		free(g->name);
@@ -58,7 +58,7 @@
  		free(g);
  		g = nextg;
  	}
-@@ -548,10 +563,10 @@
+@@ -566,10 +581,10 @@
  	// response flags
  	pkt->flags = MDNS_FLAG_RESP | MDNS_FLAG_AA;
  
@@ -73,7 +73,7 @@
  
  	pkt->rr_qn    = NULL;
  	pkt->rr_ans   = NULL;
-@@ -566,10 +581,10 @@
+@@ -584,10 +599,10 @@
  
  // destroys an mdns_pkt struct, including its contents
  void mdns_pkt_destroy(struct mdns_pkt *p) {
@@ -88,7 +88,7 @@
  
  	free(p);
  }
-@@ -643,7 +658,7 @@
+@@ -677,7 +692,7 @@
  	p += sizeof(uint16_t);
  
  	if (p + rr_data_len > e) {
@@ -97,7 +97,7 @@
  		rr_entry_destroy(rr);
  		return 0;
  	}
-@@ -654,7 +669,7 @@
+@@ -688,7 +703,7 @@
  	switch (rr->type) {
  		case RR_A:
  			if (rr_data_len < sizeof(uint32_t)) {
@@ -106,7 +106,7 @@
  				parse_error = 1;
  				break;
  			}
-@@ -664,7 +679,7 @@
+@@ -698,7 +713,7 @@
  
  		case RR_AAAA:
  			if (rr_data_len < sizeof(struct in6_addr)) {
@@ -115,7 +115,7 @@
  				parse_error = 1;
  				break;
  			}
-@@ -975,7 +990,9 @@
+@@ -1013,7 +1028,9 @@
  
  			if (off >= pkt_len) {
  				DEBUG_PRINTF("packet buffer too small\n");
@@ -229,18 +229,15 @@
  	pthread_t tid;
  	pthread_attr_t attr;
  
-@@ -648,6 +648,7 @@
+@@ -643,8 +647,26 @@
  		free(server);
  		return NULL;
  	}
 +	pthread_setname_np(tid, "mDNS");
-
- 	return server;
- }
-@@ -647,6 +651,23 @@
- 	return server;
- }
  
+ 	return server;
++}
++
 +void mdnsd_clear(struct mdnsd *s) {
 +	assert(s != NULL);
 +
@@ -256,12 +253,10 @@
 +
 +	free(s->hostname);
 +	s->hostname = NULL;
-+}
-+
- void mdnsd_stop(struct mdnsd *s) {
- 	assert(s != NULL);
+ }
  
-@@ -666,8 +687,8 @@
+ void mdnsd_stop(struct mdnsd *s) {
+@@ -666,8 +688,8 @@
  
  	pthread_mutex_destroy(&s->data_lock);
  	rr_group_destroy(s->group);

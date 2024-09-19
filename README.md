@@ -24,7 +24,7 @@
 
 ## Feature
 - [x] Hardware AES
-- [ ] Hardware MPI
+- [x] Hardware MPI
 - [x] Hardware SHA
 - [x] HomeKit (Apple)
 - [x] HTTP with SSL (Sony)

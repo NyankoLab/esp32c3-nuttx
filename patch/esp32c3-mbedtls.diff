@@ -833,6 +833,115 @@ index d91f17e4ee..4699b39528 100644
          if ( ret != 0 ) {
              return ret;
          }
+diff --git a/components/mbedtls/port/esp32c3/bignum.c b/components/mbedtls/port/esp32c3/bignum.c
+index fc5380f4ea..482ffcbc7a 100644
+--- a/components/mbedtls/port/esp32c3/bignum.c
++++ b/components/mbedtls/port/esp32c3/bignum.c
+@@ -16,7 +16,12 @@
+ #include "bignum_impl.h"
+ #include "soc/system_reg.h"
+ #include "soc/periph_defs.h"
++#ifdef __NuttX__
++#include "../esp_hw_support/port/esp32c3/esp_crypto_lock.c"
++#include "esp_mbedtls.h"
++#else
+ #include "esp_crypto_lock.h"
++#endif
+ 
+ 
+ size_t esp_mpi_hardware_words(size_t words)
+diff --git a/components/mbedtls/port/esp_bignum.c b/components/mbedtls/port/esp_bignum.c
+index cf86beaf7c..a5aac958b4 100644
+--- a/components/mbedtls/port/esp_bignum.c
++++ b/components/mbedtls/port/esp_bignum.c
+@@ -24,8 +24,15 @@
+ #include "esp_pm.h"
+ #endif
+ 
++#ifdef __NuttX__
++#include <pthread.h>
++#include "esp_mbedtls.h"
++#include "esp32c3/bignum.c"
++int mbedtls_mpi_exp_mod_soft(mbedtls_mpi *X, const mbedtls_mpi *A, const mbedtls_mpi *E, const mbedtls_mpi *N, mbedtls_mpi *_RR);
++#else
+ #include "freertos/FreeRTOS.h"
+ #include "freertos/semphr.h"
++#endif
+ 
+ #include "soc/hwcrypto_periph.h"
+ #include "soc/periph_defs.h"
+@@ -56,12 +63,25 @@ static const __attribute__((unused)) char *TAG = "bignum";
+ #define biL    (ciL << 3)                         /* bits  in limb  */
+ 
+ #if defined(CONFIG_MBEDTLS_MPI_USE_INTERRUPT)
++#ifdef __NuttX__
++static sem_t *op_complete_sem;
++#else
+ static SemaphoreHandle_t op_complete_sem;
++#endif
+ #if defined(CONFIG_PM_ENABLE)
+ static esp_pm_lock_handle_t s_pm_cpu_lock;
+ static esp_pm_lock_handle_t s_pm_sleep_lock;
+ #endif
+ 
++#ifdef __NuttX__
++static IRAM_ATTR int esp_mpi_complete_isr(int irq, void *context, void *arg)
++{
++    esp_mpi_interrupt_clear();
++
++    sem_post(op_complete_sem);
++    return OK;
++}
++#else
+ static IRAM_ATTR void esp_mpi_complete_isr(void *arg)
+ {
+     BaseType_t higher_woken;
+@@ -72,6 +92,7 @@ static IRAM_ATTR void esp_mpi_complete_isr(void *arg)
+         portYIELD_FROM_ISR();
+     }
+ }
++#endif
+ 
+ 
+ static esp_err_t esp_mpi_isr_initialise(void)
+@@ -79,6 +100,17 @@ static esp_err_t esp_mpi_isr_initialise(void)
+     esp_mpi_interrupt_clear();
+     esp_mpi_interrupt_enable(true);
+     if (op_complete_sem == NULL) {
++#ifdef __NuttX__
++        op_complete_sem = calloc(1, sizeof(sem_t));
++
++        if (sem_init(op_complete_sem, 0, 0) != 0) {
++            ESP_LOGE(TAG, "Failed to create intr semaphore");
++            return ESP_FAIL;
++        }
++
++        irq_attach(ESP_IRQ_RSA, esp_mpi_complete_isr, NULL);
++        up_enable_irq(ESP_IRQ_RSA);
++#else
+         op_complete_sem = xSemaphoreCreateBinary();
+ 
+         if (op_complete_sem == NULL) {
+@@ -87,6 +119,7 @@ static esp_err_t esp_mpi_isr_initialise(void)
+         }
+ 
+         esp_intr_alloc(ETS_RSA_INTR_SOURCE, 0, esp_mpi_complete_isr, NULL, NULL);
++#endif
+     }
+ 
+     /* MPI is clocked proportionally to CPU clock, take power management lock */
+@@ -110,7 +143,11 @@ static esp_err_t esp_mpi_isr_initialise(void)
+ 
+ static int esp_mpi_wait_intr(void)
+ {
++#ifdef __NuttX__
++    if (sem_trywait(op_complete_sem) != 0) {
++#else
+     if (!xSemaphoreTake(op_complete_sem, 2000 / portTICK_PERIOD_MS)) {
++#endif
+         ESP_LOGE("MPI", "Timed out waiting for completion of MPI Interrupt");
+         return -1;
+     }
 diff --git a/components/mbedtls/port/include/aes_alt.h b/components/mbedtls/port/include/aes_alt.h
 index 2f8e958b27..b09411bf38 100644
 --- a/components/mbedtls/port/include/aes_alt.h
@@ -891,221 +1000,111 @@ index 2f8e958b27..b09411bf38 100644
  
  #ifdef __cplusplus
 diff --git a/components/mbedtls/port/include/mbedtls/esp_config.h b/components/mbedtls/port/include/mbedtls/esp_config.h
-index ddebe16903..d36b22aaa1 100644
+index ddebe16903..36a8c61e6b 100644
 --- a/components/mbedtls/port/include/mbedtls/esp_config.h
 +++ b/components/mbedtls/port/include/mbedtls/esp_config.h
-@@ -1814,11 +1814,7 @@
-  *
-  * Module:  library/chacha20.c
-  */
--#ifdef CONFIG_MBEDTLS_CHACHA20_C
- #define MBEDTLS_CHACHA20_C
--#else
--#undef MBEDTLS_CHACHA20_C
--#endif
- 
- /**
-  * \def MBEDTLS_CHACHAPOLY_C
-@@ -1829,11 +1825,7 @@
-  *
-  * This module requires: MBEDTLS_CHACHA20_C, MBEDTLS_POLY1305_C
-  */
--#ifdef CONFIG_MBEDTLS_CHACHAPOLY_C
- #define MBEDTLS_CHACHAPOLY_C
--#else
--#undef MBEDTLS_CHACHAPOLY_C
--#endif
- 
- /**
-  * \def MBEDTLS_CIPHER_C
-@@ -2090,11 +2082,7 @@
-  * This module enables support for the Hashed Message Authentication Code
-  * (HMAC)-based key derivation function (HKDF).
-  */
--#ifdef CONFIG_MBEDTLS_HKDF_C
- #define MBEDTLS_HKDF_C
--#else
--#undef MBEDTLS_HKDF_C
--#endif
- 
- /**
-  * \def MBEDTLS_HMAC_DRBG_C
-@@ -2175,9 +2163,7 @@
+@@ -190,7 +190,7 @@
+     /* Hardware only mode */
+     #define MBEDTLS_MPI_EXP_MOD_ALT
+ #endif
+-#define MBEDTLS_MPI_MUL_MPI_ALT
++#undef MBEDTLS_MPI_MUL_MPI_ALT
+ #else
+ #undef MBEDTLS_MPI_EXP_MOD_ALT_FALLBACK
+ #undef MBEDTLS_MPI_EXP_MOD_ALT
+@@ -2175,7 +2175,9 @@
   *
   * This module provides networking routines.
   */
 -#ifdef MBEDTLS_NET_C
--#undef MBEDTLS_NET_C
--#endif
++#ifdef CONFIG_MBEDTLS_NET_C
 +#define MBEDTLS_NET_C
++#else
+ #undef MBEDTLS_NET_C
+ #endif
  
- /**
-  * \def MBEDTLS_OID_C
-@@ -2387,11 +2373,7 @@
-  * Module:  library/poly1305.c
-  * Caller:  library/chachapoly.c
-  */
--#ifdef CONFIG_MBEDTLS_POLY1305_C
- #define MBEDTLS_POLY1305_C
--#else
--#undef MBEDTLS_POLY1305_C
--#endif
- 
- /**
-  * \def MBEDTLS_RIPEMD160_C
 diff --git a/components/mbedtls/port/sha/block/esp_sha1.c b/components/mbedtls/port/sha/block/esp_sha1.c
-index 1e73fe5d92..8c38a2c3b6 100644
+index 1e73fe5d92..14cdcbdc6c 100644
 --- a/components/mbedtls/port/sha/block/esp_sha1.c
 +++ b/components/mbedtls/port/sha/block/esp_sha1.c
-@@ -56,14 +56,14 @@ static void mbedtls_zeroize( void *v, size_t n )
- }
- #endif
+@@ -17,6 +17,7 @@
  
--void mbedtls_sha1_init( mbedtls_sha1_context *ctx )
-+void esp_mbedtls_sha1_init( mbedtls_sha1_context *ctx )
- {
-     assert(ctx != NULL);
+ #if defined(MBEDTLS_SHA1_C) && defined(MBEDTLS_SHA1_ALT)
  
-     memset( ctx, 0, sizeof( mbedtls_sha1_context ) );
- }
++#include "esp_mbedtls.h"
+ #include "mbedtls/sha1.h"
  
--void mbedtls_sha1_free( mbedtls_sha1_context *ctx )
-+void esp_mbedtls_sha1_free( mbedtls_sha1_context *ctx )
- {
-     if ( ctx == NULL ) {
-         return;
-@@ -71,7 +71,7 @@ void mbedtls_sha1_free( mbedtls_sha1_context *ctx )
-     mbedtls_zeroize( ctx, sizeof( mbedtls_sha1_context ) );
- }
- 
--void mbedtls_sha1_clone( mbedtls_sha1_context *dst,
-+void esp_mbedtls_sha1_clone( mbedtls_sha1_context *dst,
-                          const mbedtls_sha1_context *src )
- {
-     memcpy(dst, src, sizeof(mbedtls_sha1_context));
-@@ -80,7 +80,7 @@ void mbedtls_sha1_clone( mbedtls_sha1_context *dst,
- /*
-  * SHA-1 context setup
-  */
--int mbedtls_sha1_starts( mbedtls_sha1_context *ctx )
-+int esp_mbedtls_sha1_starts( mbedtls_sha1_context *ctx )
- {
-     ctx->total[0] = 0;
-     ctx->total[1] = 0;
-@@ -120,7 +120,7 @@ int mbedtls_internal_sha1_process( mbedtls_sha1_context *ctx, const unsigned cha
-     return 0;
- }
- 
--int mbedtls_sha1_update( mbedtls_sha1_context *ctx, const unsigned char *input, size_t ilen )
-+int esp_mbedtls_sha1_update( mbedtls_sha1_context *ctx, const unsigned char *input, size_t ilen )
- {
-     size_t fill;
-     uint32_t left, local_len = 0;
-@@ -187,7 +187,7 @@ static const unsigned char sha1_padding[64] = {
- /*
- * SHA-1 final digest
-  */
--int mbedtls_sha1_finish( mbedtls_sha1_context *ctx, unsigned char output[20] )
-+int esp_mbedtls_sha1_finish( mbedtls_sha1_context *ctx, unsigned char output[20] )
- {
-     int ret = -1;
-     uint32_t last, padn;
-@@ -205,10 +205,10 @@ int mbedtls_sha1_finish( mbedtls_sha1_context *ctx, unsigned char output[20] )
-     padn = ( last < 56 ) ? ( 56 - last ) : ( 120 - last );
- 
- 
--    if ( ( ret = mbedtls_sha1_update( ctx, sha1_padding, padn ) ) != 0 ) {
-+    if ( ( ret = esp_mbedtls_sha1_update( ctx, sha1_padding, padn ) ) != 0 ) {
-         return ret;
-     }
--    if ( ( ret = mbedtls_sha1_update( ctx, msglen, 8 ) ) != 0 ) {
-+    if ( ( ret = esp_mbedtls_sha1_update( ctx, msglen, 8 ) ) != 0 ) {
-         return ret;
-     }
- 
+ #include <string.h>
 diff --git a/components/mbedtls/port/sha/block/esp_sha256.c b/components/mbedtls/port/sha/block/esp_sha256.c
-index eb456afda7..d13dca8f20 100644
+index eb456afda7..99a81db481 100644
 --- a/components/mbedtls/port/sha/block/esp_sha256.c
 +++ b/components/mbedtls/port/sha/block/esp_sha256.c
-@@ -65,14 +65,14 @@ do {                                                    \
- } while( 0 )
- #endif
+@@ -17,6 +17,7 @@
  
--void mbedtls_sha256_init( mbedtls_sha256_context *ctx )
-+void esp_mbedtls_sha256_init( mbedtls_sha256_context *ctx )
- {
-     assert(ctx != NULL);
+ #if defined(MBEDTLS_SHA256_C) && defined(MBEDTLS_SHA256_ALT)
  
-     memset( ctx, 0, sizeof( mbedtls_sha256_context ) );
- }
++#include "esp_mbedtls.h"
+ #include "mbedtls/sha256.h"
  
--void mbedtls_sha256_free( mbedtls_sha256_context *ctx )
-+void esp_mbedtls_sha256_free( mbedtls_sha256_context *ctx )
- {
-     if ( ctx == NULL ) {
-         return;
-@@ -81,7 +81,7 @@ void mbedtls_sha256_free( mbedtls_sha256_context *ctx )
-     mbedtls_zeroize( ctx, sizeof( mbedtls_sha256_context ) );
- }
- 
--void mbedtls_sha256_clone( mbedtls_sha256_context *dst,
-+void esp_mbedtls_sha256_clone( mbedtls_sha256_context *dst,
-                            const mbedtls_sha256_context *src )
- {
-     *dst = *src;
-@@ -90,7 +90,7 @@ void mbedtls_sha256_clone( mbedtls_sha256_context *dst,
- /*
-  * SHA-256 context setup
-  */
--int mbedtls_sha256_starts( mbedtls_sha256_context *ctx, int is224 )
-+int esp_mbedtls_sha256_starts( mbedtls_sha256_context *ctx, int is224 )
- {
-     memset( ctx, 0, sizeof( mbedtls_sha256_context ) );
- 
-@@ -136,7 +136,7 @@ int mbedtls_internal_sha256_process( mbedtls_sha256_context *ctx, const unsigned
- /*
-  * SHA-256 process buffer
-  */
--int mbedtls_sha256_update( mbedtls_sha256_context *ctx, const unsigned char *input,
-+int esp_mbedtls_sha256_update( mbedtls_sha256_context *ctx, const unsigned char *input,
-                                size_t ilen )
- {
-     size_t fill;
-@@ -206,7 +206,7 @@ static const unsigned char sha256_padding[64] = {
- /*
-  * SHA-256 final digest
-  */
--int mbedtls_sha256_finish( mbedtls_sha256_context *ctx, unsigned char *output )
-+int esp_mbedtls_sha256_finish( mbedtls_sha256_context *ctx, unsigned char *output )
- {
-     int ret = -1;
-     uint32_t last, padn;
-@@ -223,11 +223,11 @@ int mbedtls_sha256_finish( mbedtls_sha256_context *ctx, unsigned char *output )
-     last = ctx->total[0] & 0x3F;
-     padn = ( last < 56 ) ? ( 56 - last ) : ( 120 - last );
- 
--    if ( ( ret = mbedtls_sha256_update( ctx, sha256_padding, padn ) ) != 0 ) {
-+    if ( ( ret = esp_mbedtls_sha256_update( ctx, sha256_padding, padn ) ) != 0 ) {
-         return ret;
-     }
- 
--    if ( ( ret = mbedtls_sha256_update( ctx, msglen, 8 ) ) != 0 ) {
-+    if ( ( ret = esp_mbedtls_sha256_update( ctx, msglen, 8 ) ) != 0 ) {
-         return ret;
-     }
- 
+ #include <string.h>
 diff --git a/nuttx/esp32c3/include/sdkconfig.h b/nuttx/esp32c3/include/sdkconfig.h
-index fac1eaeeb8..bb7c75407c 100644
+index fac1eaeeb8..50b23dbaad 100644
 --- a/nuttx/esp32c3/include/sdkconfig.h
 +++ b/nuttx/esp32c3/include/sdkconfig.h
-@@ -345,8 +345,10 @@
+@@ -345,8 +345,16 @@
  #define CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN 4096
  #define CONFIG_MBEDTLS_SSL_KEEP_PEER_CERTIFICATE 1
  #define CONFIG_MBEDTLS_PKCS7_C 1
++#define CONFIG_MBEDTLS_CHACHA20_C 1
++#define CONFIG_MBEDTLS_CHACHAPOLY_C 1
++#define CONFIG_MBEDTLS_HKDF_C 1
++#define CONFIG_MBEDTLS_NET_C 1
++#define CONFIG_MBEDTLS_POLY1305_C 1
 +#define CONFIG_MBEDTLS_HARDWARE_AES 1
  #define CONFIG_MBEDTLS_AES_USE_INTERRUPT 1
++#define CONFIG_MBEDTLS_HARDWARE_MPI 1
  #define CONFIG_MBEDTLS_MPI_USE_INTERRUPT 1
 +#define CONFIG_MBEDTLS_HARDWARE_SHA 1
  #define CONFIG_MBEDTLS_ROM_MD5 1
  #define CONFIG_MBEDTLS_HAVE_TIME 1
  #define CONFIG_MBEDTLS_ECDSA_DETERMINISTIC 1
+diff --git a/nuttx/include/mbedtls/esp_mbedtls.h b/nuttx/include/mbedtls/esp_mbedtls.h
+index f07ecb6854..52b960bd5d 100644
+--- a/nuttx/include/mbedtls/esp_mbedtls.h
++++ b/nuttx/include/mbedtls/esp_mbedtls.h
+@@ -104,6 +104,7 @@
+ #  define mbedtls_mpi_div_mpi                       esp_mbedtls_mpi_div_mpi
+ #  define mbedtls_mpi_exp_mod                       esp_mbedtls_mpi_exp_mod
+ #  define mbedtls_mpi_free                          esp_mbedtls_mpi_free
++#  define mbedtls_mpi_grow                          esp_mbedtls_mpi_grow
+ #  define mbedtls_mpi_get_bit                       esp_mbedtls_mpi_get_bit
+ #  define mbedtls_mpi_init                          esp_mbedtls_mpi_init
+ #  define mbedtls_mpi_inv_mod                       esp_mbedtls_mpi_inv_mod
+@@ -112,6 +113,8 @@
+ #  define mbedtls_mpi_mul_mpi                       esp_mbedtls_mpi_mul_mpi
+ #  define mbedtls_mpi_random                        esp_mbedtls_mpi_random
+ #  define mbedtls_mpi_read_binary                   esp_mbedtls_mpi_read_binary
++#  define mbedtls_mpi_set_bit                       esp_mbedtls_mpi_set_bit
++#  define mbedtls_mpi_shift_l                       esp_mbedtls_mpi_shift_l
+ #  define mbedtls_mpi_shift_r                       esp_mbedtls_mpi_shift_r
+ #  define mbedtls_mpi_size                          esp_mbedtls_mpi_size
+ #  define mbedtls_mpi_sub_int                       esp_mbedtls_mpi_sub_int
+@@ -146,6 +149,18 @@
+ #  define mbedtls_rsa_pkcs1_sign                    esp_mbedtls_rsa_pkcs1_sign
+ #  define mbedtls_rsa_public                        esp_mbedtls_rsa_public
+ #  define mbedtls_rsa_rsaes_pkcs1_v15_decrypt       esp_mbedtls_rsa_rsaes_pkcs1_v15_decrypt
++#  define mbedtls_sha1_clone                        esp_mbedtls_sha1_clone
++#  define mbedtls_sha1_finish                       esp_mbedtls_sha1_finish
++#  define mbedtls_sha1_free                         esp_mbedtls_sha1_free
++#  define mbedtls_sha1_init                         esp_mbedtls_sha1_init
++#  define mbedtls_sha1_starts                       esp_mbedtls_sha1_starts
++#  define mbedtls_sha1_update                       esp_mbedtls_sha1_update
++#  define mbedtls_sha256_clone                      esp_mbedtls_sha256_clone
++#  define mbedtls_sha256_finish                     esp_mbedtls_sha256_finish
++#  define mbedtls_sha256_free                       esp_mbedtls_sha256_free
++#  define mbedtls_sha256_init                       esp_mbedtls_sha256_init
++#  define mbedtls_sha256_starts                     esp_mbedtls_sha256_starts
++#  define mbedtls_sha256_update                     esp_mbedtls_sha256_update
+ #  define mbedtls_ssl_conf_authmode                 esp_mbedtls_ssl_conf_authmode
+ #  define mbedtls_ssl_conf_ca_chain                 esp_mbedtls_ssl_conf_ca_chain
+ #  define mbedtls_ssl_conf_cert_profile             esp_mbedtls_ssl_conf_cert_profile

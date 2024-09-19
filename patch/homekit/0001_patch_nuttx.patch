@@ -379,6 +379,28 @@ index 85a6926..d470990 100644
      HAPAssert(ret == 0);
      mbedtls_sha256_free(&ctx);
  }
+diff --git a/PAL/HAPAssert.h b/PAL/HAPAssert.h
+index e176b93..672733e 100644
+--- a/PAL/HAPAssert.h
++++ b/PAL/HAPAssert.h
+@@ -19,7 +19,7 @@ extern "C" {
+ 
+ // Validate flag for disabling assertions.
+ #ifndef HAP_DISABLE_ASSERTS
+-#define HAP_DISABLE_ASSERTS (0)
++#define HAP_DISABLE_ASSERTS (1)
+ #endif
+ #if HAP_DISABLE_ASSERTS < 0 || HAP_DISABLE_ASSERTS > 1
+ #error "Invalid HAP_DISABLE_ASSERTS."
+@@ -27,7 +27,7 @@ extern "C" {
+ 
+ // Validate flag for disabling preconditions.
+ #ifndef HAP_DISABLE_PRECONDITIONS
+-#define HAP_DISABLE_PRECONDITIONS (0)
++#define HAP_DISABLE_PRECONDITIONS (1)
+ #endif
+ #if HAP_DISABLE_PRECONDITIONS < 0 || HAP_DISABLE_PRECONDITIONS > 1
+ #error "Invalid HAP_DISABLE_PRECONDITIONS."
 diff --git a/PAL/HAPBase+CompilerAbstraction.h b/PAL/HAPBase+CompilerAbstraction.h
 index cd4a73e..78ca374 100644
 --- a/PAL/HAPBase+CompilerAbstraction.h

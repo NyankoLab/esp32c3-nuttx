@@ -851,7 +851,7 @@ index fc5380f4ea..482ffcbc7a 100644
  
  size_t esp_mpi_hardware_words(size_t words)
 diff --git a/components/mbedtls/port/esp_bignum.c b/components/mbedtls/port/esp_bignum.c
-index cf86beaf7c..a5aac958b4 100644
+index cf86beaf7c..772b54f15a 100644
 --- a/components/mbedtls/port/esp_bignum.c
 +++ b/components/mbedtls/port/esp_bignum.c
 @@ -24,8 +24,15 @@
@@ -930,12 +930,15 @@ index cf86beaf7c..a5aac958b4 100644
      }
  
      /* MPI is clocked proportionally to CPU clock, take power management lock */
-@@ -110,7 +143,11 @@ static esp_err_t esp_mpi_isr_initialise(void)
+@@ -110,7 +143,14 @@ static esp_err_t esp_mpi_isr_initialise(void)
  
  static int esp_mpi_wait_intr(void)
  {
 +#ifdef __NuttX__
-+    if (sem_trywait(op_complete_sem) != 0) {
++    struct timespec ts;
++    clock_gettime(CLOCK_MONOTONIC, &ts);
++    ts.tv_sec += 2;
++    if (sem_clockwait(op_complete_sem, CLOCK_MONOTONIC, &ts) == -1) {
 +#else
      if (!xSemaphoreTake(op_complete_sem, 2000 / portTICK_PERIOD_MS)) {
 +#endif

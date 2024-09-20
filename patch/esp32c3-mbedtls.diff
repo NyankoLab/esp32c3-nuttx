@@ -851,15 +851,16 @@ index fc5380f4ea..482ffcbc7a 100644
  
  size_t esp_mpi_hardware_words(size_t words)
 diff --git a/components/mbedtls/port/esp_bignum.c b/components/mbedtls/port/esp_bignum.c
-index cf86beaf7c..772b54f15a 100644
+index cf86beaf7c..9bc0ae43cb 100644
 --- a/components/mbedtls/port/esp_bignum.c
 +++ b/components/mbedtls/port/esp_bignum.c
-@@ -24,8 +24,15 @@
+@@ -24,8 +24,16 @@
  #include "esp_pm.h"
  #endif
  
 +#ifdef __NuttX__
 +#include <pthread.h>
++#include "esp_irq.h"
 +#include "esp_mbedtls.h"
 +#include "esp32c3/bignum.c"
 +int mbedtls_mpi_exp_mod_soft(mbedtls_mpi *X, const mbedtls_mpi *A, const mbedtls_mpi *E, const mbedtls_mpi *N, mbedtls_mpi *_RR);
@@ -870,7 +871,7 @@ index cf86beaf7c..772b54f15a 100644
  
  #include "soc/hwcrypto_periph.h"
  #include "soc/periph_defs.h"
-@@ -56,12 +63,25 @@ static const __attribute__((unused)) char *TAG = "bignum";
+@@ -56,12 +64,25 @@ static const __attribute__((unused)) char *TAG = "bignum";
  #define biL    (ciL << 3)                         /* bits  in limb  */
  
  #if defined(CONFIG_MBEDTLS_MPI_USE_INTERRUPT)
@@ -896,7 +897,7 @@ index cf86beaf7c..772b54f15a 100644
  static IRAM_ATTR void esp_mpi_complete_isr(void *arg)
  {
      BaseType_t higher_woken;
-@@ -72,6 +92,7 @@ static IRAM_ATTR void esp_mpi_complete_isr(void *arg)
+@@ -72,6 +93,7 @@ static IRAM_ATTR void esp_mpi_complete_isr(void *arg)
          portYIELD_FROM_ISR();
      }
  }
@@ -904,7 +905,7 @@ index cf86beaf7c..772b54f15a 100644
  
  
  static esp_err_t esp_mpi_isr_initialise(void)
-@@ -79,6 +100,17 @@ static esp_err_t esp_mpi_isr_initialise(void)
+@@ -79,6 +101,18 @@ static esp_err_t esp_mpi_isr_initialise(void)
      esp_mpi_interrupt_clear();
      esp_mpi_interrupt_enable(true);
      if (op_complete_sem == NULL) {
@@ -916,13 +917,14 @@ index cf86beaf7c..772b54f15a 100644
 +            return ESP_FAIL;
 +        }
 +
++        esp_setup_irq(ETS_RSA_INTR_SOURCE, ESP_IRQ_PRIORITY_DEFAULT, ESP_IRQ_TRIGGER_LEVEL);
 +        irq_attach(ESP_IRQ_RSA, esp_mpi_complete_isr, NULL);
 +        up_enable_irq(ESP_IRQ_RSA);
 +#else
          op_complete_sem = xSemaphoreCreateBinary();
  
          if (op_complete_sem == NULL) {
-@@ -87,6 +119,7 @@ static esp_err_t esp_mpi_isr_initialise(void)
+@@ -87,6 +121,7 @@ static esp_err_t esp_mpi_isr_initialise(void)
          }
  
          esp_intr_alloc(ETS_RSA_INTR_SOURCE, 0, esp_mpi_complete_isr, NULL, NULL);
@@ -930,7 +932,7 @@ index cf86beaf7c..772b54f15a 100644
      }
  
      /* MPI is clocked proportionally to CPU clock, take power management lock */
-@@ -110,7 +143,14 @@ static esp_err_t esp_mpi_isr_initialise(void)
+@@ -110,7 +145,14 @@ static esp_err_t esp_mpi_isr_initialise(void)
  
  static int esp_mpi_wait_intr(void)
  {

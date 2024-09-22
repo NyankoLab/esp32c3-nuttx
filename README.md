@@ -15,12 +15,10 @@
 - [x] MQTT Client
 - [x] NTPClient
 - [x] Reboot
-- [x] uip WebClient
+- [x] Telnet Server
 - [x] uip WebServer
-- [x] wget
 - [x] WiFi SoftAP
 - [x] WiFi Station
-- [x] WiFi Thread
 
 ## Feature
 - [x] Hardware AES

@@ -86,6 +86,19 @@ index e2e627ca9f..2f6f36069e 100644
  ### Define Espressif's configs for mbedTLS
  
  CFLAGS += $(DEFINE_PREFIX)MBEDTLS_CONFIG_FILE="<mbedtls/esp_config.h>"
+diff --git a/arch/risc-v/src/common/espressif/esp_wifi_init.c b/arch/risc-v/src/common/espressif/esp_wifi_init.c
+index ba94d12eaf..413fed1211 100644
+--- a/arch/risc-v/src/common/espressif/esp_wifi_init.c
++++ b/arch/risc-v/src/common/espressif/esp_wifi_init.c
+@@ -463,3 +463,8 @@ esp_err_t esp_wifi_init(const wifi_init_config_t *config)
+ 
+   return result;
+ }
++
++uint32_t mesh_sta_auth_expire_time(void)
++{
++    return 0;
++}
 diff --git a/arch/risc-v/src/common/espressif/esp_wifi_utils.h b/arch/risc-v/src/common/espressif/esp_wifi_utils.h
 index 738fbbed08..17914d9554 100644
 --- a/arch/risc-v/src/common/espressif/esp_wifi_utils.h
@@ -99,19 +112,6 @@ index 738fbbed08..17914d9554 100644
  /****************************************************************************
   * Name: esp_wifi_start_scan
   *
-diff --git a/arch/risc-v/src/common/riscv_initialize.c b/arch/risc-v/src/common/riscv_initialize.c
-index 9d0f1c81d7..6305a4a565 100644
---- a/arch/risc-v/src/common/riscv_initialize.c
-+++ b/arch/risc-v/src/common/riscv_initialize.c
-@@ -130,3 +130,8 @@ void up_initialize(void)
- 
-   board_autoled_on(LED_IRQSENABLED);
- }
-+
-+uint32_t mesh_sta_auth_expire_time(void)
-+{
-+    return 0;
-+}
 diff --git a/arch/risc-v/src/esp32c3/Make.defs b/arch/risc-v/src/esp32c3/Make.defs
 index 97e5963f4b..e5b1a6e2c1 100644
 --- a/arch/risc-v/src/esp32c3/Make.defs
@@ -468,7 +468,7 @@ index 8e826bddc5..43ee769719 100644
          break;
        case R_RISCV_32_PCREL:
 diff --git a/syscall/syscall.csv b/syscall/syscall.csv
-index 6b23fcd604..ec55f52e69 100644
+index 6b23fcd604..5275883b56 100644
 --- a/syscall/syscall.csv
 +++ b/syscall/syscall.csv
 @@ -1,5 +1,6 @@
@@ -494,7 +494,7 @@ index 6b23fcd604..ec55f52e69 100644
  "task_create","sched.h","!defined(CONFIG_BUILD_KERNEL)", "int","FAR const char *","int","int","main_t","FAR char * const []|FAR char * const *"
  "task_delete","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
  "task_restart","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
-@@ -199,7 +210,294 @@
+@@ -199,7 +210,297 @@
  "unsetenv","stdlib.h","!defined(CONFIG_DISABLE_ENVIRON)","int","FAR const char *"
  "up_fork","nuttx/arch.h","defined(CONFIG_ARCH_HAVE_FORK)","pid_t"
  "utimens","sys/stat.h","","int","FAR const char *","const struct timespec [2]|FAR const struct timespec *"
@@ -564,9 +564,9 @@ index 6b23fcd604..ec55f52e69 100644
 +"wpa_driver_wext_set_auth_param","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","int","uint32_t"
 +"wpa_driver_wext_get_auth_param","../../apps/include/wireless/wapi.h","","int","int","FAR const char *","int","uint32_t *"
 +"wpa_driver_wext_associate","../../apps/include/wireless/wapi.h","","int","FAR struct wpa_wconfig_s *"
-+"webclient_set_defaults","../../apps/include/netutils/webclient.h","","void","FAR struct webclient_context *"
-+"webclient_perform","../../apps/include/netutils/webclient.h","","int","FAR struct webclient_context *"
-+"webclient_abort","../../apps/include/netutils/webclient.h","","void","FAR struct webclient_context *"
++"webclient_set_defaults","../../apps/include/netutils/webclient.h","defined(CONFIG_NETUTILS_WEBCLIENT)","void","FAR struct webclient_context *"
++"webclient_perform","../../apps/include/netutils/webclient.h","defined(CONFIG_NETUTILS_WEBCLIENT)","int","FAR struct webclient_context *"
++"webclient_abort","../../apps/include/netutils/webclient.h","defined(CONFIG_NETUTILS_WEBCLIENT)","void","FAR struct webclient_context *"
 +"kHAPAccessoryServerTransport_IP","../../apps/netutils/homekit/HomeKitADK/HAP/HAP.h","defined(CONFIG_NETUTILS_HOMEKIT)","const HAPIPAccessoryServerTransport"
 +"kHAPCharacteristicType_AdministratorOnlyAccess","../../apps/netutils/homekit/HomeKitADK/HAP/HAPCharacteristicTypes.h","defined(CONFIG_NETUTILS_HOMEKIT)","const HAPUUID"
 +"kHAPCharacteristicType_AudioFeedback","../../apps/netutils/homekit/HomeKitADK/HAP/HAPCharacteristicTypes.h","defined(CONFIG_NETUTILS_HOMEKIT)","const HAPUUID"
@@ -739,6 +739,7 @@ index 6b23fcd604..ec55f52e69 100644
 +"HAPAccessoryServerRaiseEventOnSession","../../apps/netutils/homekit/HomeKitADK/HAP/HAP.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","HAPAccessoryServerRef *, const HAPCharacteristic *, const HAPService *, const HAPAccessory *, HAPSessionRef *"
 +"HAPRestoreFactorySettings","../../apps/netutils/homekit/HomeKitADK/HAP/HAP.h","defined(CONFIG_NETUTILS_HOMEKIT)","HAPError","HAPPlatformKeyValueStoreRef"
 +"HAPRemoveAllPairings","../../apps/netutils/homekit/HomeKitADK/HAP/HAP.h","defined(CONFIG_NETUTILS_HOMEKIT)","HAPError","HAPPlatformKeyValueStoreRef"
++"HAPAccessorySetupGenerateRandomSetupCode","../../apps/netutils/homekit/HomeKitADK/HAP/HAPAccessorySetup.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","HAPSetupCode *"
 +"HAPCharacteristicReadRequiresAdminPermissions","../../apps/netutils/homekit/HomeKitADK/HAP/HAPCharacteristic.h","defined(CONFIG_NETUTILS_HOMEKIT)","bool","const HAPCharacteristic *"
 +"HAPCharacteristicWriteRequiresAdminPermissions","../../apps/netutils/homekit/HomeKitADK/HAP/HAPCharacteristic.h","defined(CONFIG_NETUTILS_HOMEKIT)","bool","const HAPCharacteristic *"
 +"HAPDeviceIDGet","../../apps/netutils/homekit/HomeKitADK/HAP/HAPDeviceID.h","defined(CONFIG_NETUTILS_HOMEKIT)","HAPError","HAPPlatformKeyValueStoreRef, HAPDeviceID *"
@@ -778,6 +779,7 @@ index 6b23fcd604..ec55f52e69 100644
 +"HAPPlatformKeyValueStoreRemove","../../apps/netutils/homekit/HomeKitADK/PAL/HAPPlatform.h","defined(CONFIG_NETUTILS_HOMEKIT)","HAPError","HAPPlatformKeyValueStoreRef, HAPPlatformKeyValueStoreDomain, HAPPlatformKeyValueStoreKey"
 +"HAPPlatformKeyValueStoreEnumerate","../../apps/netutils/homekit/HomeKitADK/PAL/HAPPlatform.h","defined(CONFIG_NETUTILS_HOMEKIT)","HAPError","HAPPlatformKeyValueStoreRef, HAPPlatformKeyValueStoreDomain, HAPPlatformKeyValueStoreEnumerateCallback, void *"
 +"HAPPlatformKeyValueStorePurgeDomain","../../apps/netutils/homekit/HomeKitADK/PAL/HAPPlatform.h","defined(CONFIG_NETUTILS_HOMEKIT)","HAPError","HAPPlatformKeyValueStoreRef, HAPPlatformKeyValueStoreDomain"
++"HAPPlatformRandomNumberFill","../../apps/netutils/homekit/HomeKitADK/PAL/HAPPlatform.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","void *, size_t"
 +"HAPPlatformRunLoopRun","../../apps/netutils/homekit/HomeKitADK/PAL/HAPPlatform.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","void"
 +"HAPPlatformRunLoopStop","../../apps/netutils/homekit/HomeKitADK/PAL/HAPPlatform.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","void"
 +"HAPPlatformRunLoopScheduleCallback","../../apps/netutils/homekit/HomeKitADK/PAL/HAPPlatform.h","defined(CONFIG_NETUTILS_HOMEKIT)","HAPError","HAPPlatformRunLoopCallback, void *, size_t"
@@ -789,6 +791,7 @@ index 6b23fcd604..ec55f52e69 100644
 +"HAPPlatformServiceDiscoveryCreate","../../apps/netutils/homekit/HomeKitADK/PAL/POSIX/HAPPlatformServiceDiscovery+Init.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","HAPPlatformServiceDiscoveryRef, const HAPPlatformServiceDiscoveryOptions *"
 +"HAPPlatformTCPStreamManagerCreate","../../apps/netutils/homekit/HomeKitADK/PAL/POSIX/HAPPlatformTCPStreamManager+Init.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","HAPPlatformTCPStreamManagerRef, const HAPPlatformTCPStreamManagerOptions *"
 +"HAPPlatformTCPStreamManagerRelease","../../apps/netutils/homekit/HomeKitADK/PAL/POSIX/HAPPlatformTCPStreamManager+Init.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","HAPPlatformTCPStreamManagerRef"
++"HAP_srp_verifier","../../apps/netutils/homekit/HomeKitADK/PAL/HAPCrypto.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","uint8_t [], const uint8_t [], const uint8_t *, size_t, const uint8_t *, size_t"
 diff --git a/tools/mksymtab.c b/tools/mksymtab.c
 index 0c54f4b275..2c2c9404a0 100644
 --- a/tools/mksymtab.c

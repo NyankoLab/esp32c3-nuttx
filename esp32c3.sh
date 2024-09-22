@@ -50,9 +50,9 @@ cd ../..
 cd ..
 
 cd nuttx
+git apply ../patch/esp32c3-nuttx.diff
 ./tools/configure.sh esp32c3-generic:sta_softap
 cat ../esp32c3.conf >> .config
-git apply ../patch/esp32c3-nuttx.diff
 cp ../patch/mbedtls_sslutils.c arch/risc-v/src/common/espressif
 cp ../patch/sslutil.h arch/risc-v/src/common/espressif
 cp ../patch/esp32c3_attr.h arch/risc-v/src/esp32c3

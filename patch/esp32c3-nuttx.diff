@@ -468,7 +468,7 @@ index 8e826bddc5..43ee769719 100644
          break;
        case R_RISCV_32_PCREL:
 diff --git a/syscall/syscall.csv b/syscall/syscall.csv
-index 6b23fcd604..5275883b56 100644
+index 6b23fcd604..479484bda0 100644
 --- a/syscall/syscall.csv
 +++ b/syscall/syscall.csv
 @@ -1,5 +1,6 @@
@@ -486,7 +486,11 @@ index 6b23fcd604..5275883b56 100644
  "mkdir","sys/stat.h","!defined(CONFIG_DISABLE_MOUNTPOINT)","int","FAR const char *","mode_t"
  "mmap","sys/mman.h","","FAR void *","FAR void *","size_t","int","int","int","off_t"
  "modhandle","nuttx/module.h","defined(CONFIG_MODULE)","FAR void *","FAR const char *"
-@@ -180,6 +190,7 @@
+@@ -177,9 +187,11 @@
+ "socketpair","sys/socket.h","defined(CONFIG_NET)","int","int","int","int","int [2]|FAR int *"
+ "stat","sys/stat.h","","int","FAR const char *","FAR struct stat *"
+ "statfs","sys/statfs.h","","int","FAR const char *","FAR struct statfs *"
++"strlcpy","string.h","","size_t","FAR char *","FAR const char *","size_t"
  "symlink","unistd.h","defined(CONFIG_PSEUDOFS_SOFTLINKS)","int","FAR const char *","FAR const char *"
  "sync","unistd.h","","void"
  "sysinfo","sys/sysinfo.h","","int","FAR struct sysinfo *"
@@ -494,7 +498,7 @@ index 6b23fcd604..5275883b56 100644
  "task_create","sched.h","!defined(CONFIG_BUILD_KERNEL)", "int","FAR const char *","int","int","main_t","FAR char * const []|FAR char * const *"
  "task_delete","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
  "task_restart","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
-@@ -199,7 +210,297 @@
+@@ -199,7 +211,301 @@
  "unsetenv","stdlib.h","!defined(CONFIG_DISABLE_ENVIRON)","int","FAR const char *"
  "up_fork","nuttx/arch.h","defined(CONFIG_ARCH_HAVE_FORK)","pid_t"
  "utimens","sys/stat.h","","int","FAR const char *","const struct timespec [2]|FAR const struct timespec *"
@@ -503,6 +507,9 @@ index 6b23fcd604..5275883b56 100644
  "waitid","sys/wait.h","defined(CONFIG_SCHED_WAITPID) && defined(CONFIG_SCHED_HAVE_PARENT)","int","idtype_t","id_t"," FAR siginfo_t *","int"
  "waitpid","sys/wait.h","defined(CONFIG_SCHED_WAITPID)","pid_t","pid_t","FAR int *","int"
  "write","unistd.h","","ssize_t","int","FAR const void *","size_t"
++"up_enable_irq","nuttx/arch.h","!defined(CONFIG_ARCH_NOINTC)","void","int"
++"up_disable_irq","nuttx/arch.h","!defined(CONFIG_ARCH_NOINTC)","void","int"
++"irq_attach","nuttx/irq.h","","int","int","xcpt_t","FAR void *"
 +"dhcpc_open","../../apps/include/netutils/dhcpc.h","","FAR void *","FAR const char *, FAR const void *, int"
 +"dhcpc_request","../../apps/include/netutils/dhcpc.h","","int","FAR void *, FAR struct dhcpc_state *"
 +"dhcpc_request_async","../../apps/include/netutils/dhcpc.h","","int","FAR void *, dhcpc_callback_t"
@@ -535,6 +542,7 @@ index 6b23fcd604..5275883b56 100644
 +"mqtt_reconnect","../../apps/netutils/mqttc/MQTT-C/include/mqtt.h","","enum MQTTErrors","struct mqtt_client *"
 +"netlib_setmacaddr","../../apps/include/netutils/netlib.h","","int","FAR const char *","FAR const uint8_t *"
 +"netlib_getmacaddr","../../apps/include/netutils/netlib.h","","int","FAR const char *","FAR uint8_t *"
++"netlib_parseurl","../../apps/include/netutils/netlib.h","defined(CONFIG_NETUTILS_NETLIB_GENERICURLPARSER)","int","FAR const char *","FAR struct url_s *"
 +"ntpc_dualstack_family","../../apps/include/netutils/ntpclient.h","","void","int"
 +"ntpc_start_with_list","../../apps/include/netutils/ntpclient.h","","int","FAR const char *"
 +"ntpc_start","../../apps/include/netutils/ntpclient.h","","int","void"

@@ -1,5 +1,5 @@
 diff --git a/arch/risc-v/Kconfig b/arch/risc-v/Kconfig
-index 5a78e4c65a..01094bb145 100644
+index 052954b6d0..4861e89cca 100644
 --- a/arch/risc-v/Kconfig
 +++ b/arch/risc-v/Kconfig
 @@ -99,9 +99,11 @@ config ARCH_CHIP_ESP32C3_GENERIC
@@ -15,10 +15,10 @@ index 5a78e4c65a..01094bb145 100644
  	select LIBC_ARCH_ATOMIC
  	select LIBC_ARCH_MEMCPY
 diff --git a/arch/risc-v/src/cmake/Toolchain.cmake b/arch/risc-v/src/cmake/Toolchain.cmake
-index fb0e9d1db5..9cf90a0cda 100644
+index d44a20096c..aa4f94c8d3 100644
 --- a/arch/risc-v/src/cmake/Toolchain.cmake
 +++ b/arch/risc-v/src/cmake/Toolchain.cmake
-@@ -116,11 +116,7 @@ set(CMAKE_ASM_ARCHIVE_CREATE "<CMAKE_AR> rcs <TARGET> <LINK_FLAGS> <OBJECTS>")
+@@ -125,11 +125,7 @@ set(CMAKE_ASM_ARCHIVE_FINISH ${CMAKE_RANLIB_COMMAND})
  if(CONFIG_DEBUG_CUSTOMOPT)
    add_compile_options(${CONFIG_DEBUG_OPTLEVEL})
  elseif(CONFIG_DEBUG_FULLOPT)
@@ -32,7 +32,7 @@ index fb0e9d1db5..9cf90a0cda 100644
  
  if(NOT CONFIG_DEBUG_NOOPT)
 diff --git a/arch/risc-v/src/common/espressif/Wireless.mk b/arch/risc-v/src/common/espressif/Wireless.mk
-index e2e627ca9f..2f6f36069e 100644
+index 9783ac1c5f..cb392983ce 100644
 --- a/arch/risc-v/src/common/espressif/Wireless.mk
 +++ b/arch/risc-v/src/common/espressif/Wireless.mk
 @@ -28,7 +28,7 @@ EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$
@@ -44,7 +44,7 @@ index e2e627ca9f..2f6f36069e 100644
  
  ifeq ($(CONFIG_ESPRESSIF_WIFI),y)
  
-@@ -45,6 +45,41 @@ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY
+@@ -45,6 +45,42 @@ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY
  INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)mbedtls$(DELIM)port$(DELIM)include
  INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)nuttx$(DELIM)include$(DELIM)mbedtls
  
@@ -79,6 +79,7 @@ index e2e627ca9f..2f6f36069e 100644
 +CHIP_CSRCS += esp_aes_gcm.c
 +CHIP_CSRCS += esp_aes_xts.c
 +CHIP_CSRCS += esp_bignum.c
++CHIP_CSRCS += esp_platform_time.c
 +CHIP_CSRCS += esp_sha1.c
 +CHIP_CSRCS += esp_sha256.c
 +CHIP_CSRCS += sha.c
@@ -87,7 +88,7 @@ index e2e627ca9f..2f6f36069e 100644
  
  CFLAGS += $(DEFINE_PREFIX)MBEDTLS_CONFIG_FILE="<mbedtls/esp_config.h>"
 diff --git a/arch/risc-v/src/common/espressif/esp_wifi_init.c b/arch/risc-v/src/common/espressif/esp_wifi_init.c
-index ba94d12eaf..413fed1211 100644
+index 4939ef9ff4..5c367266a6 100644
 --- a/arch/risc-v/src/common/espressif/esp_wifi_init.c
 +++ b/arch/risc-v/src/common/espressif/esp_wifi_init.c
 @@ -463,3 +463,8 @@ esp_err_t esp_wifi_init(const wifi_init_config_t *config)
@@ -125,24 +126,11 @@ index 97e5963f4b..e5b1a6e2c1 100644
 +endif
 +
  CFLAGS += ${DEFINE_PREFIX}_RETARGETABLE_LOCKING
-diff --git a/arch/risc-v/src/esp32c3/esp_wifi_adapter.c b/arch/risc-v/src/esp32c3/esp_wifi_adapter.c
-index ba1080f652..1602dd7e9d 100644
---- a/arch/risc-v/src/esp32c3/esp_wifi_adapter.c
-+++ b/arch/risc-v/src/esp32c3/esp_wifi_adapter.c
-@@ -5119,7 +5119,7 @@ int esp_wifi_softap_password(struct iwreq *iwr, bool set)
- 
-       if (ext->alg != IW_ENCODE_ALG_NONE)
-         {
--          memcpy(wifi_cfg.sta.password, pdata, len);
-+          memcpy(wifi_cfg.ap.password, pdata, len);
-         }
- 
-       if (g_softap_started)
 diff --git a/binfmt/libelf/libelf_symbols.c b/binfmt/libelf/libelf_symbols.c
-index bbc232cc76..1d9c1fe3a9 100644
+index bc865c61d8..f665e7f8fd 100644
 --- a/binfmt/libelf/libelf_symbols.c
 +++ b/binfmt/libelf/libelf_symbols.c
-@@ -304,6 +304,8 @@ int elf_symvalue(FAR struct elf_loadinfo_s *loadinfo, FAR Elf_Sym *sym,
+@@ -306,6 +306,8 @@ int elf_symvalue(FAR struct elf_loadinfo_s *loadinfo, FAR Elf_Sym *sym,
            {
              berr("SHN_UNDEF: Exported symbol \"%s\" not found\n",
                   loadinfo->iobuffer);
@@ -150,6 +138,19 @@ index bbc232cc76..1d9c1fe3a9 100644
 +                 loadinfo->iobuffer);
              return -ENOENT;
            }
+ 
+diff --git a/boards/risc-v/esp32c3/common/scripts/esp32c3_sections.ld b/boards/risc-v/esp32c3/common/scripts/esp32c3_sections.ld
+index cc2661327c..485f24a7f8 100644
+--- a/boards/risc-v/esp32c3/common/scripts/esp32c3_sections.ld
++++ b/boards/risc-v/esp32c3/common/scripts/esp32c3_sections.ld
+@@ -451,7 +451,7 @@ SECTIONS
+   {
+     . = ALIGN(4);
+     *(.rtc.literal .rtc.text)
+-  } >rtc_iram_seg
++  } >rtc_iram_seg AT > ROM
+ 
+   /* RTC BSS section. */
  
 diff --git a/boards/risc-v/esp32c3/common/src/esp_board_spiflash.c b/boards/risc-v/esp32c3/common/src/esp_board_spiflash.c
 index 7e1c40ccb7..7ee8150239 100644
@@ -292,7 +293,7 @@ index b23cab8ea0..500ed940a5 100644
  VPATH += :board
  CFLAGS += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src$(DELIM)board$(DELIM)board
 diff --git a/libs/libc/libc.csv b/libs/libc/libc.csv
-index 3623e7ff62..04f50a06e6 100644
+index 1374e6714b..12958b1344 100644
 --- a/libs/libc/libc.csv
 +++ b/libs/libc/libc.csv
 @@ -212,6 +212,7 @@
@@ -302,8 +303,8 @@ index 3623e7ff62..04f50a06e6 100644
 +"pthread_exit","pthread.h","!defined(CONFIG_DISABLE_PTHREAD)","noreturn","pthread_addr_t"
  "pthread_getname_np","pthread.h","!defined(CONFIG_DISABLE_PTHREAD)","int","pthread_t","char *","size_t"
  "pthread_getspecific","pthread.h","!defined(CONFIG_DISABLE_PTHREAD) && CONFIG_TLS_NELEM > 0","FAR void *","pthread_key_t"
- "pthread_key_create","pthread.h","!defined(CONFIG_DISABLE_PTHREAD) && CONFIG_TLS_NELEM > 0","int","FAR pthread_key_t *","FAR void (*) (void *)|FAR void *"
-@@ -248,8 +249,13 @@
+ "pthread_gettid_np","pthread.h","!defined(CONFIG_DISABLE_PTHREAD)","pid_t","pthread_t"
+@@ -254,8 +255,13 @@
  "scandir","dirent.h","","int","FAR const char *","FAR struct dirent ***","FAR int (*)(const struct dirent *)|FAR void *","FAR void *"
  "sched_get_priority_max","sched.h","","int","int"
  "sched_get_priority_min","sched.h","","int","int"
@@ -317,6 +318,14 @@ index 3623e7ff62..04f50a06e6 100644
  "setlocale","locale.h","defined(CONFIG_LIBC_LOCALE)","FAR char *","int","FAR const char *"
  "setlogmask","syslog.h","","int","int"
  "setpriority","sys/resource.h","","int","int","id_t","int"
+@@ -292,6 +298,7 @@
+ "strerror","string.h","","FAR char *","int"
+ "strerror_r","string.h","","int","int","FAR char *","size_t"
+ "strftime","time.h","","size_t","FAR char *","size_t","FAR const char *","FAR const struct tm *"
++"strlcpy","string.h","","size_t","FAR char *","FAR const char *","size_t"
+ "strlen","string.h","","size_t","FAR const char *"
+ "strncasecmp","strings.h","","int","FAR const char *","FAR const char *","size_t"
+ "strncat","string.h","","FAR char *","FAR char *","FAR const char *","size_t"
 diff --git a/libs/libc/machine/risc-v/arch_elf.c b/libs/libc/machine/risc-v/arch_elf.c
 index 8e826bddc5..43ee769719 100644
 --- a/libs/libc/machine/risc-v/arch_elf.c
@@ -468,7 +477,7 @@ index 8e826bddc5..43ee769719 100644
          break;
        case R_RISCV_32_PCREL:
 diff --git a/syscall/syscall.csv b/syscall/syscall.csv
-index 6b23fcd604..479484bda0 100644
+index c26caca14a..f8b0901e90 100644
 --- a/syscall/syscall.csv
 +++ b/syscall/syscall.csv
 @@ -1,5 +1,6 @@
@@ -478,7 +487,7 @@ index 6b23fcd604..479484bda0 100644
  "accept4","sys/socket.h","defined(CONFIG_NET)","int","int","FAR struct sockaddr *","FAR socklen_t *","int"
  "adjtime","sys/time.h","defined(CONFIG_CLOCK_TIMEKEEPING)","int","FAR const struct timeval *","FAR struct timeval *"
  "aio_cancel","aio.h","defined(CONFIG_FS_AIO)","int","int","FAR struct aiocb *"
-@@ -60,6 +69,7 @@
+@@ -63,6 +72,7 @@
  "lseek","unistd.h","","off_t","int","off_t","int"
  "lstat","sys/stat.h","","int","FAR const char *","FAR struct stat *"
  "lutimens","sys/stat.h","","int","FAR const char *","const struct timespec [2]|FAR const struct timespec *"
@@ -486,11 +495,7 @@ index 6b23fcd604..479484bda0 100644
  "mkdir","sys/stat.h","!defined(CONFIG_DISABLE_MOUNTPOINT)","int","FAR const char *","mode_t"
  "mmap","sys/mman.h","","FAR void *","FAR void *","size_t","int","int","int","off_t"
  "modhandle","nuttx/module.h","defined(CONFIG_MODULE)","FAR void *","FAR const char *"
-@@ -177,9 +187,11 @@
- "socketpair","sys/socket.h","defined(CONFIG_NET)","int","int","int","int","int [2]|FAR int *"
- "stat","sys/stat.h","","int","FAR const char *","FAR struct stat *"
- "statfs","sys/statfs.h","","int","FAR const char *","FAR struct statfs *"
-+"strlcpy","string.h","","size_t","FAR char *","FAR const char *","size_t"
+@@ -184,6 +194,7 @@
  "symlink","unistd.h","defined(CONFIG_PSEUDOFS_SOFTLINKS)","int","FAR const char *","FAR const char *"
  "sync","unistd.h","","void"
  "sysinfo","sys/sysinfo.h","","int","FAR struct sysinfo *"
@@ -498,12 +503,15 @@ index 6b23fcd604..479484bda0 100644
  "task_create","sched.h","!defined(CONFIG_BUILD_KERNEL)", "int","FAR const char *","int","int","main_t","FAR char * const []|FAR char * const *"
  "task_delete","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
  "task_restart","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
-@@ -199,7 +211,301 @@
+@@ -199,6 +210,7 @@
+ "timerfd_gettime","sys/timerfd.h","defined(CONFIG_TIMER_FD)","int","int","FAR struct itimerspec *"
+ "timerfd_settime","sys/timerfd.h","defined(CONFIG_TIMER_FD)","int","int","int","FAR const struct itimerspec *","FAR struct itimerspec *"
+ "umount2","sys/mount.h","!defined(CONFIG_DISABLE_MOUNTPOINT)","int","FAR const char *","unsigned int"
++"uname","sys/utsname.h","","int","FAR struct utsname *"
+ "unlink","unistd.h","!defined(CONFIG_DISABLE_MOUNTPOINT)","int","FAR const char *"
  "unsetenv","stdlib.h","!defined(CONFIG_DISABLE_ENVIRON)","int","FAR const char *"
  "up_fork","nuttx/arch.h","defined(CONFIG_ARCH_HAVE_FORK)","pid_t"
- "utimens","sys/stat.h","","int","FAR const char *","const struct timespec [2]|FAR const struct timespec *"
-+"uname","sys/utsname.h","","int","FAR struct utsname *"
- "wait","sys/wait.h","defined(CONFIG_SCHED_WAITPID) && defined(CONFIG_SCHED_HAVE_PARENT)","pid_t","FAR int *"
+@@ -207,3 +219,296 @@
  "waitid","sys/wait.h","defined(CONFIG_SCHED_WAITPID) && defined(CONFIG_SCHED_HAVE_PARENT)","int","idtype_t","id_t"," FAR siginfo_t *","int"
  "waitpid","sys/wait.h","defined(CONFIG_SCHED_WAITPID)","pid_t","pid_t","FAR int *","int"
  "write","unistd.h","","ssize_t","int","FAR const void *","size_t"
@@ -800,48 +808,4 @@ index 6b23fcd604..479484bda0 100644
 +"HAPPlatformTCPStreamManagerCreate","../../apps/netutils/homekit/HomeKitADK/PAL/POSIX/HAPPlatformTCPStreamManager+Init.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","HAPPlatformTCPStreamManagerRef, const HAPPlatformTCPStreamManagerOptions *"
 +"HAPPlatformTCPStreamManagerRelease","../../apps/netutils/homekit/HomeKitADK/PAL/POSIX/HAPPlatformTCPStreamManager+Init.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","HAPPlatformTCPStreamManagerRef"
 +"HAP_srp_verifier","../../apps/netutils/homekit/HomeKitADK/PAL/HAPCrypto.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","uint8_t [], const uint8_t [], const uint8_t *, size_t, const uint8_t *, size_t"
-diff --git a/tools/mksymtab.c b/tools/mksymtab.c
-index 0c54f4b275..2c2c9404a0 100644
---- a/tools/mksymtab.c
-+++ b/tools/mksymtab.c
-@@ -130,6 +130,7 @@ int main(int argc, char **argv, char **envp)
-   char *finalterm;
-   char *ptr;
-   bool cond;
-+  bool parm1;
-   FILE *instream;
-   FILE *outstream;
-   int ch;
-@@ -268,6 +269,12 @@ int main(int argc, char **argv, char **envp)
-     {
-       /* Parse the line from the CVS file */
- 
-+      g_parm[NAME_INDEX][0] = 0;
-+      g_parm[HEADER_INDEX][0] = 0;
-+      g_parm[COND_INDEX][0] = 0;
-+      g_parm[RETTYPE_INDEX][0] = 0;
-+      g_parm[PARM1_INDEX][0] = 0;
-+
-       int nargs = parse_csvline(ptr);
-       if (nargs < PARM1_INDEX)
-         {
-@@ -286,8 +293,17 @@ int main(int argc, char **argv, char **envp)
- 
-       /* Output the symbol table entry */
- 
--      fprintf(outstream, "%s  { \"%s\", (FAR const void *)%s }",
--              nextterm, g_parm[NAME_INDEX], g_parm[NAME_INDEX]);
-+      parm1 = strlen(g_parm[PARM1_INDEX]) > 0;
-+      if (parm1)
-+        {
-+          fprintf(outstream, "%s  { \"%s\", (FAR const void *)%s }",
-+                  nextterm, g_parm[NAME_INDEX], g_parm[NAME_INDEX]);
-+        }
-+      else
-+        {
-+          fprintf(outstream, "%s  { \"%s\", (FAR const void *)&%s }",
-+                  nextterm, g_parm[NAME_INDEX], g_parm[NAME_INDEX]);
-+        }
- 
-       if (cond)
-         {
+\ No newline at end of file

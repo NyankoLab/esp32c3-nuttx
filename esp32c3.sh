@@ -48,23 +48,41 @@ cd ..
 cd ../..
 
 cd ..
-
 cd nuttx
-git apply ../patch/esp32c3-nuttx.diff
-./tools/configure.sh esp32c3-generic:sta_softap
-cat ../esp32c3.conf >> .config
+
+# Optional
 cp ../patch/mbedtls_sslutils.c arch/risc-v/src/common/espressif
 cp ../patch/sslutil.h arch/risc-v/src/common/espressif
 cp ../patch/esp32c3_attr.h arch/risc-v/src/esp32c3
 cp ../patch/esp32c3_textheap.c arch/risc-v/src/esp32c3
 mkdir -p boards/risc-v/esp32c3/esp32c3-generic/src/etc/init.d
 cp ../patch/rcS boards/risc-v/esp32c3/esp32c3-generic/src/etc/init.d
+mkdir -p ../out
+
+# Current
+git apply ../patch/esp32c3-nuttx.diff
+./tools/configure.sh esp32c3-generic:sta_softap
+cat ../esp32c3.conf >> .config
 make olddefconfig
 set -e
 make || true
 git apply --directory=arch/risc-v/src/esp32c3/esp-hal-3rdparty ../patch/esp32c3-mbedtls.diff
 make
-cd ..
+cp nuttx.bin ../out/nuttx-esp32c3.bin
 
-mkdir out
-cp nuttx/nuttx.bin out/nuttx-esp32c3.bin
+# Clean
+make distclean
+git reset --hard
+
+# HAL-060724
+git apply ../patch/esp32c3-nuttx-hal060724.diff
+./tools/configure.sh esp32c3-generic:sta_softap
+cat ../esp32c3.conf >> .config
+make olddefconfig
+set -e
+make || true
+git apply --directory=arch/risc-v/src/esp32c3/esp-hal-3rdparty ../patch/esp32c3-mbedtls-hal060724.diff
+make
+cp nuttx.bin ../out/nuttx-esp32c3-hal060724.bin
+
+cd ..

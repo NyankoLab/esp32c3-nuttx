@@ -136,15 +136,3 @@ index 0a28fce12..fd92b2e34 100644
  /* 'file' must be allocated by caller and will be filled in by the function. */
  
  #if defined(CONFIG_NETUTILS_HTTPD_SENDFILE)
-diff --git a/wireless/wapi/src/network.c b/wireless/wapi/src/network.c
-index 7a4141ef9..adeb51fbd 100644
---- a/wireless/wapi/src/network.c
-+++ b/wireless/wapi/src/network.c
-@@ -248,6 +248,7 @@ int wapi_set_ifdown(int sock, FAR const char *ifname)
-   if (ret >= 0)
-     {
-       ifr.ifr_flags &= ~IFF_UP;
-+      ifr.ifr_flags |= IFF_DOWN;
-       ret = ioctl(sock, SIOCSIFFLAGS, (unsigned long)((uintptr_t)&ifr));
-       if (ret < 0)
-         {

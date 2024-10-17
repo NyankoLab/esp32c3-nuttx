@@ -1,0 +1,446 @@
+diff --git a/components/mbedtls/mbedtls/library/net_sockets.c b/components/mbedtls/mbedtls/library/net_sockets.c
+index e63d08b..1cb9a8a 100644
+--- a/components/mbedtls/mbedtls/library/net_sockets.c
++++ b/components/mbedtls/mbedtls/library/net_sockets.c
+@@ -33,7 +33,7 @@
+ 
+ #if !defined(unix) && !defined(__unix__) && !defined(__unix) && \
+     !defined(__APPLE__) && !defined(_WIN32) && !defined(__QNXNTO__) && \
+-    !defined(__HAIKU__) && !defined(__midipix__)
++    !defined(__HAIKU__) && !defined(__midipix__) && !defined(__NuttX__)
+ #error "This module only works on Unix and Windows, see MBEDTLS_NET_C in mbedtls_config.h"
+ #endif
+ 
+diff --git a/components/mbedtls/port/aes/block/esp_aes.c b/components/mbedtls/port/aes/block/esp_aes.c
+index fcf4e2a67b..f1e4980a63 100644
+--- a/components/mbedtls/port/aes/block/esp_aes.c
++++ b/components/mbedtls/port/aes/block/esp_aes.c
+@@ -35,7 +35,11 @@
+ #include "hal/aes_hal.h"
+ #include "aes/esp_aes_internal.h"
+ 
++#ifdef __NuttX__
++#include <pthread.h>
++#else
+ #include <freertos/FreeRTOS.h>
++#endif
+ 
+ #include <stdio.h>
+ #include "esp_private/periph_ctrl.h"
+@@ -50,12 +54,20 @@ static const char *TAG = "esp-aes";
+    period of time for bigger lengths. However at the moment this has to happen
+    anyway due to DPORT protection...
+ */
++#ifdef __NuttX__
++static pthread_mutex_t aes_spinlock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
++#else
+ static portMUX_TYPE aes_spinlock = portMUX_INITIALIZER_UNLOCKED;
++#endif
+ 
+ 
+ void esp_aes_acquire_hardware( void )
+ {
++#ifdef __NuttX__
++    pthread_mutex_lock(&aes_spinlock);
++#else
+     portENTER_CRITICAL(&aes_spinlock);
++#endif
+ 
+     /* Enable AES hardware */
+     periph_module_enable(PERIPH_AES_MODULE);
+@@ -66,7 +78,11 @@ void esp_aes_release_hardware( void )
+     /* Disable AES hardware */
+     periph_module_disable(PERIPH_AES_MODULE);
+ 
++#ifdef __NuttX__
++    pthread_mutex_unlock(&aes_spinlock);
++#else
+     portEXIT_CRITICAL(&aes_spinlock);
++#endif
+ }
+ 
+ 
+@@ -91,7 +107,7 @@ static int esp_aes_block(esp_aes_context *ctx, const void *input, void *output)
+        key write to hardware. Treat this as a fatal error and zero the output block.
+     */
+     if (ctx->key_in_hardware != ctx->key_bytes) {
+-        mbedtls_platform_zeroize(output, 16);
++        esp_mbedtls_platform_zeroize(output, 16);
+         return MBEDTLS_ERR_AES_INVALID_INPUT_LENGTH;
+     }
+     i0 = input_words[0];
+@@ -112,7 +128,7 @@ static int esp_aes_block(esp_aes_context *ctx, const void *input, void *output)
+         // calling zeroing functions to narrow the
+         // window for a double-fault of the abort step, here
+         memset(output, 0, 16);
+-        mbedtls_platform_zeroize(output, 16);
++        esp_mbedtls_platform_zeroize(output, 16);
+         abort();
+     }
+ 
+diff --git a/components/mbedtls/port/aes/esp_aes_gcm.c b/components/mbedtls/port/aes/esp_aes_gcm.c
+index 80a3871146..2a9c43c095 100644
+--- a/components/mbedtls/port/aes/esp_aes_gcm.c
++++ b/components/mbedtls/port/aes/esp_aes_gcm.c
+@@ -25,11 +25,9 @@
+ #include "esp_log.h"
+ #include "mbedtls/aes.h"
+ #include "mbedtls/gcm.h"
+-#include "esp_heap_caps.h"
+-#include "soc/soc_memory_layout.h"
+ 
+ #include "mbedtls/error.h"
+-#include <string.h>
++#include <strings.h>
+ 
+ #define ESP_PUT_BE64(a, val)                                    \
+     do {                                                        \
+diff --git a/components/mbedtls/port/esp32c3/bignum.c b/components/mbedtls/port/esp32c3/bignum.c
+index fc5380f4ea..482ffcbc7a 100644
+--- a/components/mbedtls/port/esp32c3/bignum.c
++++ b/components/mbedtls/port/esp32c3/bignum.c
+@@ -16,7 +16,12 @@
+ #include "bignum_impl.h"
+ #include "soc/system_reg.h"
+ #include "soc/periph_defs.h"
++#ifdef __NuttX__
++#include "../esp_hw_support/port/esp32c3/esp_crypto_lock.c"
++#include "esp_mbedtls.h"
++#else
+ #include "esp_crypto_lock.h"
++#endif
+ 
+ 
+ size_t esp_mpi_hardware_words(size_t words)
+diff --git a/components/mbedtls/port/esp_bignum.c b/components/mbedtls/port/esp_bignum.c
+index cf86beaf7c..1498b893c9 100644
+--- a/components/mbedtls/port/esp_bignum.c
++++ b/components/mbedtls/port/esp_bignum.c
+@@ -24,8 +24,17 @@
+ #include "esp_pm.h"
+ #endif
+ 
++#ifdef __NuttX__
++#include <pthread.h>
++#include "esp_irq.h"
++#include "esp_mbedtls.h"
++#include "esp32c3/bignum.c"
++typedef sem_t* SemaphoreHandle_t;
++int mbedtls_mpi_exp_mod_soft(mbedtls_mpi *X, const mbedtls_mpi *A, const mbedtls_mpi *E, const mbedtls_mpi *N, mbedtls_mpi *_RR);
++#else
+ #include "freertos/FreeRTOS.h"
+ #include "freertos/semphr.h"
++#endif
+ 
+ #include "soc/hwcrypto_periph.h"
+ #include "soc/periph_defs.h"
+@@ -62,6 +71,15 @@ static esp_pm_lock_handle_t s_pm_cpu_lock;
+ static esp_pm_lock_handle_t s_pm_sleep_lock;
+ #endif
+ 
++#ifdef __NuttX__
++static IRAM_ATTR int esp_mpi_complete_isr(int irq, void *context, void *arg)
++{
++    esp_mpi_interrupt_clear();
++
++    sem_post(op_complete_sem);
++    return OK;
++}
++#else
+ static IRAM_ATTR void esp_mpi_complete_isr(void *arg)
+ {
+     BaseType_t higher_woken;
+@@ -72,6 +90,7 @@ static IRAM_ATTR void esp_mpi_complete_isr(void *arg)
+         portYIELD_FROM_ISR();
+     }
+ }
++#endif
+ 
+ 
+ static esp_err_t esp_mpi_isr_initialise(void)
+@@ -79,6 +98,18 @@ static esp_err_t esp_mpi_isr_initialise(void)
+     esp_mpi_interrupt_clear();
+     esp_mpi_interrupt_enable(true);
+     if (op_complete_sem == NULL) {
++#ifdef __NuttX__
++        op_complete_sem = calloc(1, sizeof(sem_t));
++
++        if (sem_init(op_complete_sem, 0, 0) != 0) {
++            ESP_LOGE(TAG, "Failed to create intr semaphore");
++            return ESP_FAIL;
++        }
++
++        esp_setup_irq(ETS_RSA_INTR_SOURCE, ESP_IRQ_PRIORITY_DEFAULT, ESP_IRQ_TRIGGER_LEVEL);
++        irq_attach(ESP_IRQ_RSA, esp_mpi_complete_isr, NULL);
++        up_enable_irq(ESP_IRQ_RSA);
++#else
+         op_complete_sem = xSemaphoreCreateBinary();
+ 
+         if (op_complete_sem == NULL) {
+@@ -87,6 +118,7 @@ static esp_err_t esp_mpi_isr_initialise(void)
+         }
+ 
+         esp_intr_alloc(ETS_RSA_INTR_SOURCE, 0, esp_mpi_complete_isr, NULL, NULL);
++#endif
+     }
+ 
+     /* MPI is clocked proportionally to CPU clock, take power management lock */
+@@ -110,7 +142,14 @@ static esp_err_t esp_mpi_isr_initialise(void)
+ 
+ static int esp_mpi_wait_intr(void)
+ {
++#ifdef __NuttX__
++    struct timespec ts;
++    clock_gettime(CLOCK_MONOTONIC, &ts);
++    ts.tv_sec += 2;
++    if (sem_clockwait(op_complete_sem, CLOCK_MONOTONIC, &ts) == -1) {
++#else
+     if (!xSemaphoreTake(op_complete_sem, 2000 / portTICK_PERIOD_MS)) {
++#endif
+         ESP_LOGE("MPI", "Timed out waiting for completion of MPI Interrupt");
+         return -1;
+     }
+diff --git a/components/mbedtls/port/include/aes_alt.h b/components/mbedtls/port/include/aes_alt.h
+index 2f8e958b27..59dfb0789f 100644
+--- a/components/mbedtls/port/include/aes_alt.h
++++ b/components/mbedtls/port/include/aes_alt.h
+@@ -28,38 +28,70 @@ extern "C" {
+ #endif
+ 
+ #if defined(MBEDTLS_AES_ALT)
++
++
++#define esp_aes_init            esp_mbedtls_aes_init
++#define esp_aes_free            esp_mbedtls_aes_free
++#define esp_aes_setkey          esp_mbedtls_aes_setkey
++#define esp_aes_crypt_ecb       esp_mbedtls_aes_crypt_ecb
++#if defined(MBEDTLS_CIPHER_MODE_CBC)
++#define esp_aes_crypt_cbc       esp_mbedtls_aes_crypt_cbc
++#endif
++#if defined(MBEDTLS_CIPHER_MODE_CFB)
++#define esp_aes_crypt_cfb128    esp_mbedtls_aes_crypt_cfb128
++#define esp_aes_crypt_cfb8      esp_mbedtls_aes_crypt_cfb8
++#endif
++#if defined(MBEDTLS_CIPHER_MODE_CTR)
++#define esp_aes_crypt_ctr       esp_mbedtls_aes_crypt_ctr
++#endif
++#if defined(MBEDTLS_CIPHER_MODE_OFB)
++#define esp_aes_crypt_ofb       esp_mbedtls_aes_crypt_ofb
++#endif
++#if defined(MBEDTLS_CIPHER_MODE_XTS)
++#define esp_aes_xts_init            esp_mbedtls_aes_xts_init
++#define esp_aes_xts_free            esp_mbedtls_aes_xts_free
++#define esp_aes_xts_setkey_enc      esp_mbedtls_aes_xts_setkey_enc
++#define esp_aes_xts_setkey_dec      esp_mbedtls_aes_xts_setkey_dec
++#define esp_aes_crypt_xts       esp_mbedtls_aes_crypt_xts
++#endif
++#define esp_internal_aes_encrypt         esp_mbedtls_internal_aes_encrypt
++#define esp_internal_aes_decrypt         esp_mbedtls_internal_aes_decrypt
+ #include "aes/esp_aes.h"
+ 
+ typedef esp_aes_context mbedtls_aes_context;
+ 
+-#define mbedtls_aes_init            esp_aes_init
+-#define mbedtls_aes_free            esp_aes_free
+-#define mbedtls_aes_setkey_enc      esp_aes_setkey
+-#define mbedtls_aes_setkey_dec      esp_aes_setkey
+-#define mbedtls_aes_crypt_ecb       esp_aes_crypt_ecb
++#define mbedtls_aes_init            esp_mbedtls_aes_init
++#define mbedtls_aes_free            esp_mbedtls_aes_free
++#define mbedtls_aes_setkey_enc      esp_mbedtls_aes_setkey_enc
++#define mbedtls_aes_setkey_dec      esp_mbedtls_aes_setkey_dec
++#define mbedtls_aes_crypt_ecb       esp_mbedtls_aes_crypt_ecb
+ #if defined(MBEDTLS_CIPHER_MODE_CBC)
+-#define mbedtls_aes_crypt_cbc       esp_aes_crypt_cbc
++#define mbedtls_aes_crypt_cbc       esp_mbedtls_aes_crypt_cbc
+ #endif
+ #if defined(MBEDTLS_CIPHER_MODE_CFB)
+-#define mbedtls_aes_crypt_cfb128    esp_aes_crypt_cfb128
+-#define mbedtls_aes_crypt_cfb8      esp_aes_crypt_cfb8
++#define mbedtls_aes_crypt_cfb128    esp_mbedtls_aes_crypt_cfb128
++#define mbedtls_aes_crypt_cfb8      esp_mbedtls_aes_crypt_cfb8
+ #endif
+ #if defined(MBEDTLS_CIPHER_MODE_CTR)
+-#define mbedtls_aes_crypt_ctr       esp_aes_crypt_ctr
++#define mbedtls_aes_crypt_ctr       esp_mbedtls_aes_crypt_ctr
+ #endif
+ #if defined(MBEDTLS_CIPHER_MODE_OFB)
+-#define mbedtls_aes_crypt_ofb       esp_aes_crypt_ofb
++#define mbedtls_aes_crypt_ofb       esp_mbedtls_aes_crypt_ofb
+ #endif
+ #if defined(MBEDTLS_CIPHER_MODE_XTS)
+ typedef esp_aes_xts_context mbedtls_aes_xts_context;
+-#define mbedtls_aes_xts_init            esp_aes_xts_init
+-#define mbedtls_aes_xts_free            esp_aes_xts_free
+-#define mbedtls_aes_xts_setkey_enc      esp_aes_xts_setkey_enc
+-#define mbedtls_aes_xts_setkey_dec      esp_aes_xts_setkey_dec
+-#define mbedtls_aes_crypt_xts       esp_aes_crypt_xts
++#define mbedtls_aes_xts_init            esp_mbedtls_aes_xts_init
++#define mbedtls_aes_xts_free            esp_mbedtls_aes_xts_free
++#define mbedtls_aes_xts_setkey_enc      esp_mbedtls_aes_xts_setkey_enc
++#define mbedtls_aes_xts_setkey_dec      esp_mbedtls_aes_xts_setkey_dec
++#define mbedtls_aes_crypt_xts       esp_mbedtls_aes_crypt_xts
+ #endif
+-#define mbedtls_internal_aes_encrypt         esp_internal_aes_encrypt
+-#define mbedtls_internal_aes_decrypt         esp_internal_aes_decrypt
++#define mbedtls_internal_aes_encrypt         esp_mbedtls_internal_aes_encrypt
++#define mbedtls_internal_aes_decrypt         esp_mbedtls_internal_aes_decrypt
++
++#define esp_mbedtls_aes_setkey_enc  esp_mbedtls_aes_setkey
++#define esp_mbedtls_aes_setkey_dec  esp_mbedtls_aes_setkey
++
+ #endif /* MBEDTLS_AES_ALT */
+ 
+ #ifdef __cplusplus
+diff --git a/components/mbedtls/port/include/gcm_alt.h b/components/mbedtls/port/include/gcm_alt.h
+index f76970944b..ea2495f353 100644
+--- a/components/mbedtls/port/include/gcm_alt.h
++++ b/components/mbedtls/port/include/gcm_alt.h
+@@ -19,20 +19,29 @@ extern "C" {
+ #if defined(MBEDTLS_GCM_ALT)
+ 
+ 
++#define esp_aes_gcm_init            esp_mbedtls_gcm_init
++#define esp_aes_gcm_free            esp_mbedtls_gcm_free
++#define esp_aes_gcm_setkey          esp_mbedtls_gcm_setkey
++#define esp_aes_gcm_starts          esp_mbedtls_gcm_starts
++#define esp_aes_gcm_update_ad       esp_mbedtls_gcm_update_ad
++#define esp_aes_gcm_update          esp_mbedtls_gcm_update
++#define esp_aes_gcm_finish          esp_mbedtls_gcm_finish
++#define esp_aes_gcm_auth_decrypt    esp_mbedtls_gcm_auth_decrypt
++#define esp_aes_gcm_crypt_and_tag   esp_mbedtls_gcm_crypt_and_tag
+ #include "aes/esp_aes_gcm.h"
+ 
+ 
+ typedef esp_gcm_context mbedtls_gcm_context;
+ 
+-#define mbedtls_gcm_init            esp_aes_gcm_init
+-#define mbedtls_gcm_free            esp_aes_gcm_free
+-#define mbedtls_gcm_setkey          esp_aes_gcm_setkey
+-#define mbedtls_gcm_starts          esp_aes_gcm_starts
+-#define mbedtls_gcm_update_ad       esp_aes_gcm_update_ad
+-#define mbedtls_gcm_update          esp_aes_gcm_update
+-#define mbedtls_gcm_finish          esp_aes_gcm_finish
+-#define mbedtls_gcm_auth_decrypt    esp_aes_gcm_auth_decrypt
+-#define mbedtls_gcm_crypt_and_tag   esp_aes_gcm_crypt_and_tag
++#define mbedtls_gcm_init            esp_mbedtls_gcm_init
++#define mbedtls_gcm_free            esp_mbedtls_gcm_free
++#define mbedtls_gcm_setkey          esp_mbedtls_gcm_setkey
++#define mbedtls_gcm_starts          esp_mbedtls_gcm_starts
++#define mbedtls_gcm_update_ad       esp_mbedtls_gcm_update_ad
++#define mbedtls_gcm_update          esp_mbedtls_gcm_update
++#define mbedtls_gcm_finish          esp_mbedtls_gcm_finish
++#define mbedtls_gcm_auth_decrypt    esp_mbedtls_gcm_auth_decrypt
++#define mbedtls_gcm_crypt_and_tag   esp_mbedtls_gcm_crypt_and_tag
+ 
+ #endif /* MBEDTLS_GCM_ALT */
+ 
+diff --git a/components/mbedtls/port/include/mbedtls/esp_config.h b/components/mbedtls/port/include/mbedtls/esp_config.h
+index ddebe16903..36a8c61e6b 100644
+--- a/components/mbedtls/port/include/mbedtls/esp_config.h
++++ b/components/mbedtls/port/include/mbedtls/esp_config.h
+@@ -190,7 +190,7 @@
+     /* Hardware only mode */
+     #define MBEDTLS_MPI_EXP_MOD_ALT
+ #endif
+-#define MBEDTLS_MPI_MUL_MPI_ALT
++#undef MBEDTLS_MPI_MUL_MPI_ALT
+ #else
+ #undef MBEDTLS_MPI_EXP_MOD_ALT_FALLBACK
+ #undef MBEDTLS_MPI_EXP_MOD_ALT
+@@ -2175,7 +2175,9 @@
+  *
+  * This module provides networking routines.
+  */
+-#ifdef MBEDTLS_NET_C
++#ifdef CONFIG_MBEDTLS_NET_C
++#define MBEDTLS_NET_C
++#else
+ #undef MBEDTLS_NET_C
+ #endif
+ 
+diff --git a/components/mbedtls/port/sha/block/esp_sha1.c b/components/mbedtls/port/sha/block/esp_sha1.c
+index 1e73fe5d92..14cdcbdc6c 100644
+--- a/components/mbedtls/port/sha/block/esp_sha1.c
++++ b/components/mbedtls/port/sha/block/esp_sha1.c
+@@ -17,6 +17,7 @@
+ 
+ #if defined(MBEDTLS_SHA1_C) && defined(MBEDTLS_SHA1_ALT)
+ 
++#include "esp_mbedtls.h"
+ #include "mbedtls/sha1.h"
+ 
+ #include <string.h>
+diff --git a/components/mbedtls/port/sha/block/esp_sha256.c b/components/mbedtls/port/sha/block/esp_sha256.c
+index eb456afda7..99a81db481 100644
+--- a/components/mbedtls/port/sha/block/esp_sha256.c
++++ b/components/mbedtls/port/sha/block/esp_sha256.c
+@@ -17,6 +17,7 @@
+ 
+ #if defined(MBEDTLS_SHA256_C) && defined(MBEDTLS_SHA256_ALT)
+ 
++#include "esp_mbedtls.h"
+ #include "mbedtls/sha256.h"
+ 
+ #include <string.h>
+diff --git a/nuttx/esp32c3/include/sdkconfig.h b/nuttx/esp32c3/include/sdkconfig.h
+index fac1eaeeb8..50b23dbaad 100644
+--- a/nuttx/esp32c3/include/sdkconfig.h
++++ b/nuttx/esp32c3/include/sdkconfig.h
+@@ -345,8 +345,16 @@
+ #define CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN 4096
+ #define CONFIG_MBEDTLS_SSL_KEEP_PEER_CERTIFICATE 1
+ #define CONFIG_MBEDTLS_PKCS7_C 1
++#define CONFIG_MBEDTLS_CHACHA20_C 1
++#define CONFIG_MBEDTLS_CHACHAPOLY_C 1
++#define CONFIG_MBEDTLS_HKDF_C 1
++#define CONFIG_MBEDTLS_NET_C 1
++#define CONFIG_MBEDTLS_POLY1305_C 1
++#define CONFIG_MBEDTLS_HARDWARE_AES 1
+ #define CONFIG_MBEDTLS_AES_USE_INTERRUPT 1
++#define CONFIG_MBEDTLS_HARDWARE_MPI 1
+ #define CONFIG_MBEDTLS_MPI_USE_INTERRUPT 1
++#define CONFIG_MBEDTLS_HARDWARE_SHA 1
+ #define CONFIG_MBEDTLS_ROM_MD5 1
+ #define CONFIG_MBEDTLS_HAVE_TIME 1
+ #define CONFIG_MBEDTLS_ECDSA_DETERMINISTIC 1
+diff --git a/nuttx/include/mbedtls/esp_mbedtls.h b/nuttx/include/mbedtls/esp_mbedtls.h
+index f07ecb6854..52b960bd5d 100644
+--- a/nuttx/include/mbedtls/esp_mbedtls.h
++++ b/nuttx/include/mbedtls/esp_mbedtls.h
+@@ -104,6 +104,7 @@
+ #  define mbedtls_mpi_div_mpi                       esp_mbedtls_mpi_div_mpi
+ #  define mbedtls_mpi_exp_mod                       esp_mbedtls_mpi_exp_mod
+ #  define mbedtls_mpi_free                          esp_mbedtls_mpi_free
++#  define mbedtls_mpi_grow                          esp_mbedtls_mpi_grow
+ #  define mbedtls_mpi_get_bit                       esp_mbedtls_mpi_get_bit
+ #  define mbedtls_mpi_init                          esp_mbedtls_mpi_init
+ #  define mbedtls_mpi_inv_mod                       esp_mbedtls_mpi_inv_mod
+@@ -112,6 +113,8 @@
+ #  define mbedtls_mpi_mul_mpi                       esp_mbedtls_mpi_mul_mpi
+ #  define mbedtls_mpi_random                        esp_mbedtls_mpi_random
+ #  define mbedtls_mpi_read_binary                   esp_mbedtls_mpi_read_binary
++#  define mbedtls_mpi_set_bit                       esp_mbedtls_mpi_set_bit
++#  define mbedtls_mpi_shift_l                       esp_mbedtls_mpi_shift_l
+ #  define mbedtls_mpi_shift_r                       esp_mbedtls_mpi_shift_r
+ #  define mbedtls_mpi_size                          esp_mbedtls_mpi_size
+ #  define mbedtls_mpi_sub_int                       esp_mbedtls_mpi_sub_int
+@@ -146,6 +149,18 @@
+ #  define mbedtls_rsa_pkcs1_sign                    esp_mbedtls_rsa_pkcs1_sign
+ #  define mbedtls_rsa_public                        esp_mbedtls_rsa_public
+ #  define mbedtls_rsa_rsaes_pkcs1_v15_decrypt       esp_mbedtls_rsa_rsaes_pkcs1_v15_decrypt
++#  define mbedtls_sha1_clone                        esp_mbedtls_sha1_clone
++#  define mbedtls_sha1_finish                       esp_mbedtls_sha1_finish
++#  define mbedtls_sha1_free                         esp_mbedtls_sha1_free
++#  define mbedtls_sha1_init                         esp_mbedtls_sha1_init
++#  define mbedtls_sha1_starts                       esp_mbedtls_sha1_starts
++#  define mbedtls_sha1_update                       esp_mbedtls_sha1_update
++#  define mbedtls_sha256_clone                      esp_mbedtls_sha256_clone
++#  define mbedtls_sha256_finish                     esp_mbedtls_sha256_finish
++#  define mbedtls_sha256_free                       esp_mbedtls_sha256_free
++#  define mbedtls_sha256_init                       esp_mbedtls_sha256_init
++#  define mbedtls_sha256_starts                     esp_mbedtls_sha256_starts
++#  define mbedtls_sha256_update                     esp_mbedtls_sha256_update
+ #  define mbedtls_ssl_conf_authmode                 esp_mbedtls_ssl_conf_authmode
+ #  define mbedtls_ssl_conf_ca_chain                 esp_mbedtls_ssl_conf_ca_chain
+ #  define mbedtls_ssl_conf_cert_profile             esp_mbedtls_ssl_conf_cert_profile

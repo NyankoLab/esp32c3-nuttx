@@ -1,0 +1,977 @@
+diff --git a/arch/risc-v/src/common/espressif/Make.defs b/arch/risc-v/src/common/espressif/Make.defs
+index 7002bd2b5b..2675f697cb 100644
+--- a/arch/risc-v/src/common/espressif/Make.defs
++++ b/arch/risc-v/src/common/espressif/Make.defs
+@@ -136,7 +136,7 @@ endif
+ 
+ ESP_HAL_3RDPARTY_REPO   = esp-hal-3rdparty
+ ifndef ESP_HAL_3RDPARTY_VERSION
+-	ESP_HAL_3RDPARTY_VERSION = 20690e67695f0a8170a19ec99e2e9a13b620e94d
++	ESP_HAL_3RDPARTY_VERSION = 9bc2c73838d497b7742f37e9b5099d6c49081fce
+ endif
+ 
+ ifndef ESP_HAL_3RDPARTY_URL
+diff --git a/arch/risc-v/src/common/espressif/Wireless.mk b/arch/risc-v/src/common/espressif/Wireless.mk
+index 9783ac1c5f..3530ce4d1a 100644
+--- a/arch/risc-v/src/common/espressif/Wireless.mk
++++ b/arch/risc-v/src/common/espressif/Wireless.mk
+@@ -28,7 +28,7 @@ EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$
+ EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_phy$(DELIM)lib$(DELIM)$(CHIP_SERIES)
+ EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_wifi$(DELIM)lib$(DELIM)$(CHIP_SERIES)
+ 
+-EXTRA_LIBS += -lphy -lcoexist -lmesh
++EXTRA_LIBS += -lphy -lcoexist
+ 
+ ifeq ($(CONFIG_ESPRESSIF_WIFI),y)
+ 
+@@ -68,7 +68,6 @@ CHIP_CSRCS += pkcs5.c
+ CHIP_CSRCS += platform_util.c
+ CHIP_CSRCS += platform.c
+ CHIP_CSRCS += sha1.c
+-CHIP_CSRCS += sha3.c
+ CHIP_CSRCS += sha256.c
+ CHIP_CSRCS += sha512.c
+ CHIP_CSRCS += pk.c
+@@ -82,9 +81,9 @@ CHIP_CSRCS += md5.c
+ CHIP_CSRCS += oid.c
+ CHIP_CSRCS += pem.c
+ CHIP_CSRCS += hmac_drbg.c
++CHIP_CSRCS += hash_info.c
+ CHIP_CSRCS += rsa_alt_helpers.c
+ CHIP_CSRCS += ecdh.c
+-CHIP_CSRCS += pk_ecc.c
+ 
+ VPATH += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)mbedtls$(DELIM)port
+ 
+@@ -113,7 +112,6 @@ CFLAGS += $(DEFINE_PREFIX)IEEE8021X_EAPOL
+ CFLAGS += $(DEFINE_PREFIX)USE_WPA2_TASK
+ CFLAGS += $(DEFINE_PREFIX)CONFIG_SHA256
+ CFLAGS += $(DEFINE_PREFIX)CONFIG_SAE
+-CFLAGS += $(DEFINE_PREFIX)USE_WPS_TASK
+ 
+ ifeq ($(CONFIG_ESPRESSIF_WIFI_ENABLE_SAE_PK),y)
+ CFLAGS += $(DEFINE_PREFIX)CONFIG_SAE_PK
+@@ -224,11 +222,11 @@ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)$(WIFI_WPA_SUPPLICANT)$(DELIM)
+ CHIP_CSRCS += esp_common.c
+ CHIP_CSRCS += esp_hostap.c
+ CHIP_CSRCS += esp_wpa_main.c
++CHIP_CSRCS += esp_wpa2.c
+ CHIP_CSRCS += esp_wpa3.c
+ CHIP_CSRCS += esp_wpas_glue.c
+ CHIP_CSRCS += esp_owe.c
+ CHIP_CSRCS += esp_scan.c
+-CHIP_CSRCS += esp_wps.c
+ 
+ VPATH += $(WIFI_WPA_SUPPLICANT)$(DELIM)esp_supplicant$(DELIM)src$(DELIM)crypto
+ 
+diff --git a/arch/risc-v/src/common/espressif/esp_irq.c b/arch/risc-v/src/common/espressif/esp_irq.c
+index e9beb217cd..a3d49fdc41 100644
+--- a/arch/risc-v/src/common/espressif/esp_irq.c
++++ b/arch/risc-v/src/common/espressif/esp_irq.c
+@@ -115,7 +115,8 @@ static volatile uint8_t g_irq_map[NR_IRQS];
+  * devices.
+  */
+ 
+-static uint32_t g_cpuint_freelist = ESP_CPUINT_PERIPHSET;
++static uint32_t g_cpuint_freelist = ESP_CPUINT_PERIPHSET & \
++                                    ~ESP_WIRELESS_RESERVE_INT;
+ 
+ /* This bitmask has an 1 if the int should be disabled
+  * when the flash is disabled.
+diff --git a/arch/risc-v/src/common/espressif/esp_start.c b/arch/risc-v/src/common/espressif/esp_start.c
+index 625439296e..c3509143cf 100644
+--- a/arch/risc-v/src/common/espressif/esp_start.c
++++ b/arch/risc-v/src/common/espressif/esp_start.c
+@@ -54,9 +54,8 @@
+ #include "spi_flash_mmap.h"
+ #include "rom/cache.h"
+ 
+-#include "bootloader_init.h"
+-
+ #ifdef CONFIG_ESPRESSIF_SIMPLE_BOOT
++#include "bootloader_init.h"
+ #include "bootloader_flash_priv.h"
+ #include "esp_rom_uart.h"
+ #include "esp_rom_sys.h"
+@@ -405,8 +404,6 @@ void __esp_start(void)
+       ets_printf("Hardware init failed, aborting\n");
+       while (true);
+     }
+-#else
+-  bootloader_clear_bss_section();
+ #endif
+ 
+ #if defined(CONFIG_ESPRESSIF_BOOTLOADER_MCUBOOT) || \
+@@ -478,6 +475,15 @@ void __esp_start(void)
+ 
+   showprogress('A');
+ 
++  /* Clear .bss. We'll do this inline (vs. calling memset) just to be
++   * certain that there are no issues with the state of global variables.
++   */
++
++  for (uint32_t *dest = (uint32_t *)_sbss; dest < (uint32_t *)_ebss; )
++    {
++      *dest++ = 0;
++    }
++
+   /* Setup the syscall table needed by the ROM code */
+ 
+   esp_setup_syscall_table();
+diff --git a/arch/risc-v/src/common/espressif/esp_wifi_init.c b/arch/risc-v/src/common/espressif/esp_wifi_init.c
+index 4939ef9ff4..dc54d3cfef 100644
+--- a/arch/risc-v/src/common/espressif/esp_wifi_init.c
++++ b/arch/risc-v/src/common/espressif/esp_wifi_init.c
+@@ -35,7 +35,7 @@
+ #include "esp_sleep.h"
+ #include "esp_private/esp_clk.h"
+ #include "esp_wpa.h"
+-#include "private/esp_coexist_internal.h"
++#include "esp_coexist_internal.h"
+ #include "esp_phy_init.h"
+ #include "esp_private/phy.h"
+ 
+@@ -463,3 +463,8 @@ esp_err_t esp_wifi_init(const wifi_init_config_t *config)
+ 
+   return result;
+ }
++
++uint32_t mesh_sta_auth_expire_time(void)
++{
++  return 0;
++}
+diff --git a/arch/risc-v/src/esp32c3/esp_coex_adapter.c b/arch/risc-v/src/esp32c3/esp_coex_adapter.c
+index 555363c72c..d994285bd0 100644
+--- a/arch/risc-v/src/esp32c3/esp_coex_adapter.c
++++ b/arch/risc-v/src/esp32c3/esp_coex_adapter.c
+@@ -41,11 +41,11 @@
+ #include "esp_timer.h"
+ #include "soc/rtc.h"
+ #include "esp_private/esp_clk.h"
+-#include "private/esp_coexist_adapter.h"
++#include "esp_coexist_adapter.h"
+ #include "rom/ets_sys.h"
+ #include "soc/soc_caps.h"
+ #include "soc/system_reg.h"
+-#include "private/esp_modem_wrapper.h"
++#include "esp_modem_wrapper.h"
+ 
+ /****************************************************************************
+  * Pre-processor Definitions
+diff --git a/arch/risc-v/src/esp32c3/esp_wifi_adapter.c b/arch/risc-v/src/esp32c3/esp_wifi_adapter.c
+index dd453ab82d..1602dd7e9d 100644
+--- a/arch/risc-v/src/esp32c3/esp_wifi_adapter.c
++++ b/arch/risc-v/src/esp32c3/esp_wifi_adapter.c
+@@ -74,9 +74,9 @@
+ #include "esp_private/esp_clk.h"
+ #include "os.h"
+ #include "esp_smartconfig.h"
+-#include "private/esp_coexist_internal.h"
++#include "esp_coexist_internal.h"
+ #include "rom/ets_sys.h"
+-#include "private/esp_modem_wrapper.h"
++#include "esp_modem_wrapper.h"
+ 
+ #include "esp_wlan.h"
+ #include "esp_wifi_adapter.h"
+@@ -282,8 +282,6 @@ int32_t esp_event_post_wrapper(const char *event_base,
+                                uint32_t ticks);
+ static void wifi_apb80m_request_wrapper(void);
+ static void wifi_apb80m_release_wrapper(void);
+-static void esp_phy_enable_wrapper(void);
+-static void esp_phy_disable_wrapper(void);
+ static void timer_arm_wrapper(void *timer, uint32_t tmout, bool repeat);
+ static void wifi_reset_mac_wrapper(void);
+ static void wifi_rtc_enable_iso_wrapper(void);
+@@ -329,8 +327,6 @@ static void *coex_schm_curr_phase_get_wrapper(void);
+ static int coex_register_start_cb_wrapper(int (* cb)(void));
+ static int coex_schm_process_restart_wrapper(void);
+ static int coex_schm_register_cb_wrapper(int type, int(*cb)(int));
+-static int coex_schm_flexible_period_set_wrapper(uint8_t period);
+-static uint8_t coex_schm_flexible_period_get_wrapper(void);
+ static void esp_empty_wrapper(void);
+ 
+ /* Second block of functions
+@@ -505,8 +501,8 @@ wifi_osi_funcs_t g_wifi_osi_funcs =
+       esp_empty_wrapper,
+   ._wifi_apb80m_request = wifi_apb80m_request_wrapper,
+   ._wifi_apb80m_release = wifi_apb80m_release_wrapper,
+-  ._phy_disable = esp_phy_disable_wrapper,
+-  ._phy_enable = esp_phy_enable_wrapper,
++  ._phy_disable = esp_phy_disable,
++  ._phy_enable = esp_phy_enable,
+   ._phy_update_country_info = esp_phy_update_country_info,
+   ._read_mac = esp_read_mac_wrapper,
+   ._timer_arm = timer_arm_wrapper,
+@@ -568,8 +564,6 @@ wifi_osi_funcs_t g_wifi_osi_funcs =
+   ._coex_register_start_cb = coex_register_start_cb_wrapper,
+   ._coex_schm_process_restart = coex_schm_process_restart_wrapper,
+   ._coex_schm_register_cb = coex_schm_register_cb_wrapper,
+-  ._coex_schm_flexible_period_set = coex_schm_flexible_period_set_wrapper,
+-  ._coex_schm_flexible_period_get = coex_schm_flexible_period_get_wrapper,
+   ._magic = ESP_WIFI_OS_ADAPTER_MAGIC,
+ };
+ 
+@@ -1567,48 +1561,6 @@ static void IRAM_ATTR wifi_apb80m_release_wrapper(void)
+ #endif
+ }
+ 
+-/****************************************************************************
+- * Name: esp_phy_enable_wrapper
+- *
+- * Description:
+- *   This function enables the WiFi PHY. It first enables the PHY for the
+- *   WiFi modem, then sets the WiFi PHY enable flag to 1.
+- *
+- * Input Parameters:
+- *   None
+- *
+- * Returned Value:
+- *   None
+- *
+- ****************************************************************************/
+-
+-static void esp_phy_enable_wrapper(void)
+-{
+-  esp_phy_enable(PHY_MODEM_WIFI);
+-  phy_wifi_enable_set(1);
+-}
+-
+-/****************************************************************************
+- * Name: esp_phy_disable_wrapper
+- *
+- * Description:
+- *   This function disables the WiFi PHY. It first sets the WiFi PHY enable
+- *   flag to 0, then disables the PHY for the WiFi modem.
+- *
+- * Input Parameters:
+- *   None
+- *
+- * Returned Value:
+- *   None
+- *
+- ****************************************************************************/
+-
+-static void esp_phy_disable_wrapper(void)
+-{
+-  phy_wifi_enable_set(0);
+-  esp_phy_disable(PHY_MODEM_WIFI);
+-}
+-
+ /****************************************************************************
+  * Name: timer_arm_wrapper
+  *
+@@ -2393,60 +2345,6 @@ static int coex_schm_register_cb_wrapper(int type, int(*cb)(int))
+ #endif
+ }
+ 
+-/****************************************************************************
+- * Name: coex_schm_flexible_period_set_wrapper
+- *
+- * Description:
+- *   This function sets the coexistence scheme flexible period. If the
+- *   coexistence power management feature is enabled
+- *   (CONFIG_ESP_COEX_POWER_MANAGEMENT), it calls the function
+- *   coex_schm_flexible_period_set with the given period and returns its
+- *   result. If the feature is not enabled, it returns 0.
+- *
+- * Input Parameters:
+- *   period - The flexible period to set.
+- *
+- * Returned Value:
+- *   ESP_OK on success, or the result of coex_schm_flexible_period_set.
+- *
+- ****************************************************************************/
+-
+-static int coex_schm_flexible_period_set_wrapper(uint8_t period)
+-{
+-#if CONFIG_ESP_COEX_POWER_MANAGEMENT
+-  return coex_schm_flexible_period_set(period);
+-#else
+-  return 0;
+-#endif
+-}
+-
+-/****************************************************************************
+- * Name: coex_schm_flexible_period_get_wrapper
+- *
+- * Description:
+- *   This function gets the coexistence scheme flexible period. If the
+- *   coexistence power management feature is enabled
+- *   (CONFIG_ESP_COEX_POWER_MANAGEMENT), it calls the function
+- *   coex_schm_flexible_period_get and returns its result. If the feature is
+- *   not enabled, it returns 1.
+- *
+- * Input Parameters:
+- *   None
+- *
+- * Returned Value:
+- *   The coexistence scheme flexible period.
+- *
+- ****************************************************************************/
+-
+-static uint8_t coex_schm_flexible_period_get_wrapper(void)
+-{
+-#if CONFIG_ESP_COEX_POWER_MANAGEMENT
+-  return coex_schm_flexible_period_get();
+-#else
+-  return 1;
+-#endif
+-}
+-
+ /****************************************************************************
+  * Name: esp_empty_wrapper
+  *
+diff --git a/arch/risc-v/src/esp32c3/hal_esp32c3.mk b/arch/risc-v/src/esp32c3/hal_esp32c3.mk
+index 19d92770ef..e12dc422ac 100644
+--- a/arch/risc-v/src/esp32c3/hal_esp32c3.mk
++++ b/arch/risc-v/src/esp32c3/hal_esp32c3.mk
+@@ -22,9 +22,6 @@
+ 
+ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)nuttx$(DELIM)include
+ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)nuttx$(DELIM)$(CHIP_SERIES)$(DELIM)include
+-INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bootloader_support$(DELIM)bootloader_flash$(DELIM)include
+-INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bootloader_support$(DELIM)include
+-INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bootloader_support$(DELIM)private_include
+ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)driver$(DELIM)twai$(DELIM)include
+ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)driver$(DELIM)spi$(DELIM)include
+ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)efuse$(DELIM)include
+@@ -62,6 +59,9 @@ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY
+ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)spi_flash$(DELIM)include$(DELIM)spi_flash
+ 
+ ifeq ($(CONFIG_ESPRESSIF_SIMPLE_BOOT),y)
++  INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bootloader_support$(DELIM)include
++  INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bootloader_support$(DELIM)private_include
++  INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bootloader_support$(DELIM)bootloader_flash$(DELIM)include
+   INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)spi_flash$(DELIM)include
+   INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)spi_flash$(DELIM)include$(DELIM)spi_flash
+   INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_app_format$(DELIM)include
+@@ -69,17 +69,15 @@ endif
+ 
+ # Linker scripts
+ 
+-ARCHSCRIPT += $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_rom$(DELIM)$(CHIP_SERIES)$(DELIM)ld$(DELIM)$(CHIP_SERIES).rom.api.ld
+-ARCHSCRIPT += $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_rom$(DELIM)$(CHIP_SERIES)$(DELIM)ld$(DELIM)$(CHIP_SERIES).rom.eco3.ld
+ ARCHSCRIPT += $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_rom$(DELIM)$(CHIP_SERIES)$(DELIM)ld$(DELIM)$(CHIP_SERIES).rom.ld
+-ARCHSCRIPT += $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_rom$(DELIM)$(CHIP_SERIES)$(DELIM)ld$(DELIM)$(CHIP_SERIES).rom.libgcc.ld
++ARCHSCRIPT += $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_rom$(DELIM)$(CHIP_SERIES)$(DELIM)ld$(DELIM)$(CHIP_SERIES).rom.eco3.ld
++ARCHSCRIPT += $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_rom$(DELIM)$(CHIP_SERIES)$(DELIM)ld$(DELIM)$(CHIP_SERIES).rom.api.ld
+ ARCHSCRIPT += $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_rom$(DELIM)$(CHIP_SERIES)$(DELIM)ld$(DELIM)$(CHIP_SERIES).rom.newlib.ld
+ ARCHSCRIPT += $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_rom$(DELIM)$(CHIP_SERIES)$(DELIM)ld$(DELIM)$(CHIP_SERIES).rom.version.ld
+ ARCHSCRIPT += $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)soc$(DELIM)$(CHIP_SERIES)$(DELIM)ld$(DELIM)$(CHIP_SERIES).peripherals.ld
+ 
+ # Source files
+ 
+-CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bootloader_support$(DELIM)src$(DELIM)bootloader_init.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)efuse$(DELIM)src$(DELIM)esp_efuse_api.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)efuse$(DELIM)src$(DELIM)esp_efuse_utility.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)efuse$(DELIM)$(CHIP_SERIES)$(DELIM)esp_efuse_fields.c
+@@ -108,7 +106,6 @@ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_hw_support$(DELIM)port$(DELIM)$(CHIP_SERIES)$(DELIM)sar_periph_ctrl.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_hw_support$(DELIM)port$(DELIM)$(CHIP_SERIES)$(DELIM)systimer.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_phy$(DELIM)src$(DELIM)lib_printf.c
+-CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_phy$(DELIM)src$(DELIM)phy_common.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_phy$(DELIM)src$(DELIM)phy_init.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_rom$(DELIM)patches$(DELIM)esp_rom_systimer.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_system$(DELIM)esp_err.c
+@@ -117,18 +114,17 @@ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_system$(DELIM)port$(DELIM)soc$(DELIM)$(CHIP_SERIES)$(DELIM)system_internal.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)adc_hal_common.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)brownout_hal.c
+-CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)cache_hal.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)efuse_hal.c
+-CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)gdma_hal.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)gpio_hal.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)ledc_hal.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)ledc_hal_iram.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)systimer_hal.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)timer_hal.c
++CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)timer_hal_iram.c
++CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)cache_hal.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)mpu_hal.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)mmu_hal.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)rmt_hal.c
+-CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)i2c_hal.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)spi_hal.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)spi_hal_iram.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)hal$(DELIM)twai_hal.c
+@@ -148,14 +144,13 @@ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)soc$
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)soc$(DELIM)$(CHIP_SERIES)$(DELIM)gpio_periph.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)soc$(DELIM)$(CHIP_SERIES)$(DELIM)ledc_periph.c
+ CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)soc$(DELIM)$(CHIP_SERIES)$(DELIM)rmt_periph.c
+-CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)soc$(DELIM)$(CHIP_SERIES)$(DELIM)i2c_periph.c
+-CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)soc$(DELIM)$(CHIP_SERIES)$(DELIM)temperature_sensor_periph.c
+ 
+ ifeq ($(CONFIG_ESPRESSIF_SIMPLE_BOOT),y)
+   CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)nuttx$(DELIM)src$(DELIM)bootloader_banner_wrap.c
+   CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bootloader_support$(DELIM)src$(DELIM)bootloader_console.c
+   CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bootloader_support$(DELIM)src$(DELIM)bootloader_console_loader.c
+   CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bootloader_support$(DELIM)src$(DELIM)${CHIP_SERIES}$(DELIM)bootloader_${CHIP_SERIES}.c
++  CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bootloader_support$(DELIM)src$(DELIM)bootloader_init.c
+   CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bootloader_support$(DELIM)src$(DELIM)bootloader_common.c
+   CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bootloader_support$(DELIM)src$(DELIM)bootloader_common_loader.c
+   CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bootloader_support$(DELIM)bootloader_flash$(DELIM)src$(DELIM)bootloader_flash.c
+diff --git a/boards/risc-v/esp32c3/common/scripts/esp32c3_sections.ld b/boards/risc-v/esp32c3/common/scripts/esp32c3_sections.ld
+index cc2661327c..9f78f898a5 100644
+--- a/boards/risc-v/esp32c3/common/scripts/esp32c3_sections.ld
++++ b/boards/risc-v/esp32c3/common/scripts/esp32c3_sections.ld
+@@ -18,15 +18,12 @@
+  *
+  ****************************************************************************/
+ 
+-#include "common.ld"
+-
+ /* Default entry point: */
+ 
+ ENTRY(__start);
+ 
+ SECTIONS
+ {
+-#ifdef CONFIG_ESPRESSIF_BOOTLOADER_MCUBOOT
+   .metadata :
+   {
+     /* Magic for load header */
+@@ -57,280 +54,6 @@ SECTIONS
+     LONG(LOADADDR(.dram0.data))
+     LONG(SIZEOF(.dram0.data))
+   } >metadata
+-#endif
+-
+-  .iram0.text :
+-  {
+-    _iram_start = ABSOLUTE(.);
+-
+-    /* Vectors go to start of IRAM */
+-
+-    KEEP(*(.exception_vectors.text));
+-    . = ALIGN(4);
+-
+-    *(.iram1)
+-    *(.iram1.*)
+-
+-    *libsched.a:irq_dispatch.*(.text .text.* .literal .literal.*)
+-
+-    *libarch.a:*brownout.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*cpu.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*gpio_hal.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*periph_ctrl.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*clk.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*esp_clk.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*esp_clk_tree.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*esp_clk_tree_common.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*clk_tree_hal.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*rtc_init.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*regi2c_ctrl.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*gpio_periph.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*rtc_clk.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*rtc_clk_init.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*rtc_sleep.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*rtc_time.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*systimer.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*systimer_hal.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*uart_hal_iram.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*wdt_hal_iram.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_banner_wrap.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_init.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_common.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_common_loader.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_console.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_console_loader.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_esp32c3.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_flash.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_flash_config_esp32c3.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_clock_init.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_clock_loader.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_efuse.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_panic.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_mem.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_random.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_random_esp32c3.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*esp_image_format.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_soc.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*bootloader_sha.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*flash_encrypt.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*cache_hal.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*uart_hal.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*mpu_hal.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*mmu_hal.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*uart_periph.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*esp_rom_uart.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*esp_rom_sys.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*esp_rom_spiflash.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*esp_efuse_fields.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*esp_efuse_api_key.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*efuse_hal.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*log.*(.text .text.* .literal .literal.*)
+-    *libarch.a:*log_noos.*(.text .text.* .literal .literal.*)
+-    *libarch.a:esp_spiflash.*(.literal .text .literal.* .text.*)
+-
+-    *libc.a:sq_remlast.*(.literal .text .literal.* .text.*)
+-
+-    esp_head.*(.literal .text .literal.* .text.*)
+-    esp_start.*(.literal .text .literal.* .text.*)
+-
+-    *libesp_wifi.a:esp_adapter.*(.literal.coex_pti_get_wrapper .text.coex_pti_get_wrapper)
+-    *libesp_wifi.a:wifi_netif.*(.literal.wifi_sta_receive .text.wifi_sta_receive)
+-    *libesp_wifi.a:wifi_netif.*(.literal.wifi_transmit_wrap .text.wifi_transmit_wrap)
+-
+-    *libhal.a:timer_hal.*(.literal.timer_hal_capture_and_get_counter_value .text.timer_hal_capture_and_get_counter_value)
+-
+-    *(.wifi0iram.*)
+-    *(.wifirxiram.*)
+-    *(.wifislpiram.*)
+-    *(.wifiorslpiram.*)
+-    *(.wifislprxiram.*)
+-
+-  } >iram0_0_seg AT > ROM
+-
+-  /* This section is required to skip .iram0.text area because iram0_0_seg
+-   * and dram0_0_seg reflect the same address space on different buses.
+-   */
+-
+-  .dram0.dummy (NOLOAD):
+-  {
+-    . = ORIGIN(dram0_0_seg) + _iram_end - _iram_start;
+-  } >dram0_0_seg
+-
+-  .noinit (NOLOAD):
+-  {
+-    /* This section contains data that is not initialized during load,
+-     * or during the application's initialization sequence.
+-     */
+-
+-    *(.noinit)
+-    *(.noinit.*)
+-  } >dram0_0_seg
+-
+-  .dram0.data :
+-  {
+-    . = ALIGN (16);
+-    _data_start = ABSOLUTE(.);
+-    _sdata = ABSOLUTE(.);
+-    *(.data)
+-    *(.data.*)
+-    *(.gnu.linkonce.d.*)
+-    *(.data1)
+-    __global_pointer$ = . + 0x800;
+-    *(.sdata)
+-    *(.sdata.*)
+-    *(.gnu.linkonce.s.*)
+-    *(.sdata2)
+-    *(.sdata2.*)
+-    *(.gnu.linkonce.s2.*)
+-    *(.jcr)
+-    *(.dram1)
+-    *(.dram1.*)
+-
+-    *libsched.a:irq_dispatch.*(.rodata .rodata.*)
+-
+-    *libarch.a:*brownout.*(.rodata .rodata.*)
+-    *libarch.a:*cpu.*(.rodata .rodata.*)
+-    *libarch.a:*gpio_hal.*(.rodata .rodata.*)
+-    *libarch.a:*periph_ctrl.*(.rodata .rodata.*)
+-    *libarch.a:*clk.*(.rodata .rodata.*)
+-    *libarch.a:*esp_clk.*(.rodata .rodata.*)
+-    *libarch.a:*esp_clk_tree.*(.rodata .rodata.*)
+-    *libarch.a:*esp_clk_tree_common.*(.rodata .rodata.*)
+-    *libarch.a:*clk_tree_hal.*(.rodata .rodata.*)
+-    *libarch.a:*rtc_init.*(.rodata .rodata.*)
+-    *libarch.a:*regi2c_ctrl.*(.rodata .rodata.*)
+-    *libarch.a:*gpio_periph.*(.rodata .rodata.*)
+-    *libarch.a:*rtc_clk.*(.rodata .rodata.*)
+-    *libarch.a:*rtc_clk_init.*(.rodata .rodata.*)
+-    *libarch.a:*rtc_sleep.*(.rodata .rodata.*)
+-    *libarch.a:*rtc_time.*(.rodata .rodata.*)
+-    *libarch.a:*systimer.*(.rodata .rodata.*)
+-    *libarch.a:*systimer_hal.*(.rodata .rodata.*)
+-    *libarch.a:*uart_hal_iram.*(.rodata .rodata.*)
+-    *libarch.a:*wdt_hal_iram.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_banner_wrap.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_init.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_common.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_common_loader.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_console.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_console_loader.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_esp32c3.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_flash.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_flash_config_esp32c3.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_clock_init.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_clock_loader.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_efuse.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_panic.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_mem.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_random.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_random_esp32c3.*(.rodata .rodata.*)
+-    *libarch.a:*esp_image_format.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_soc.*(.rodata .rodata.*)
+-    *libarch.a:*bootloader_sha.*(.rodata .rodata.*)
+-    *libarch.a:*flash_encrypt.*(.rodata .rodata.*)
+-    *libarch.a:*cache_hal.*(.rodata .rodata.*)
+-    *libarch.a:*uart_hal.*(.rodata .rodata.*)
+-    *libarch.a:*mpu_hal.*(.rodata .rodata.*)
+-    *libarch.a:*mmu_hal.*(.rodata .rodata.*)
+-    *libarch.a:*uart_periph.*(.rodata .rodata.*)
+-    *libarch.a:*esp_rom_uart.*(.rodata .rodata.*)
+-    *libarch.a:*esp_rom_sys.*(.rodata .rodata.*)
+-    *libarch.a:*esp_rom_spiflash.*(.rodata .rodata.*)
+-    *libarch.a:*esp_efuse_fields.*(.rodata .rodata.*)
+-    *libarch.a:*esp_efuse_api_key.*(.rodata .rodata.*)
+-    *libarch.a:*efuse_hal.*(.rodata .rodata.*)
+-    *libarch.a:*log.*(.rodata .rodata.*)
+-    *libarch.a:*log_noos.*(.rodata .rodata.*)
+-    *libarch.a:esp_spiflash.*(.rodata .rodata.*)
+-
+-    esp_head.*(.rodata .rodata.*)
+-    esp_start.*(.rodata .rodata.*)
+-
+-    . = ALIGN(4);
+-    _edata = ABSOLUTE(.);
+-    _data_end = ABSOLUTE(.);
+-  } >dram0_0_seg AT > ROM
+-
+-  /* Shared RAM */
+-
+-  .dram0.bss (NOLOAD) :
+-  {
+-    . = ALIGN (8);
+-    _bss_start = ABSOLUTE(.);
+-    _sbss = ABSOLUTE(.);
+-    *(.dynsbss)
+-    *(.sbss)
+-    *(.sbss.*)
+-    *(.gnu.linkonce.sb.*)
+-    *(.scommon)
+-    *(.sbss2)
+-    *(.sbss2.*)
+-    *(.gnu.linkonce.sb2.*)
+-    *(.dynbss)
+-    *(.bss)
+-    *(.bss.*)
+-    *(.share.mem)
+-    *(.gnu.linkonce.b.*)
+-    *(COMMON)
+-
+-    . = ALIGN (8);
+-    _ebss = ABSOLUTE(.);
+-    _bss_end = ABSOLUTE(.);
+-  } >dram0_0_seg
+-
+-  _image_irom_vma = ADDR(.flash.text);
+-  _image_irom_lma = LOADADDR(.flash.text);
+-  _image_irom_size = LOADADDR(.flash.text) + SIZEOF(.flash.text) - _image_irom_lma;
+-
+-  .flash.text : ALIGN(0xFFFF)
+-  {
+-    _stext = .;
+-    _instruction_reserved_start = ABSOLUTE(.);  /* This is a symbol marking the flash.text start, this can be used for mmu driver to maintain virtual address */
+-    _text_start = ABSOLUTE(.);
+-
+-    *(EXCLUDE_FILE(*libnet80211.a *libpp.a) .wifi0iram EXCLUDE_FILE(*libnet80211.a *libpp.a) .wifi0iram.*)
+-    *(.wifiextrairam .wifiextrairam.*)
+-    *(EXCLUDE_FILE(*libpp.a) .wifiorslpiram EXCLUDE_FILE(*libpp.a) .wifiorslpiram.*)
+-    *(EXCLUDE_FILE(*libnet80211.a *libpp.a) .wifirxiram EXCLUDE_FILE(*libnet80211.a *libpp.a) .wifirxiram.*)
+-    *(.wifislpiram .wifislpiram.*)
+-    *(EXCLUDE_FILE(*libnet80211.a *libpp.a) .wifislprxiram EXCLUDE_FILE(*libnet80211.a *libpp.a) .wifislprxiram.*)
+-
+-    *libesp_wifi.a:esp_adapter.*(.text .text.clear_intr_wrapper .text.coex_deinit_wrapper .text.coex_disable_wrapper .text.coex_enable_wrapper .text.coex_init_wrapper .text.coex_register_start_cb_wrapper .text.coex_schm_curr_period_get_wrapper .text.coex_schm_curr_phase_get_wrapper .text.coex_schm_flexible_period_get_wrapper .text.coex_schm_flexible_period_set_wrapper .text.coex_schm_interval_get_wrapper .text.coex_schm_process_restart_wrapper .text.coex_schm_register_cb_wrapper .text.coex_schm_status_bit_clear_wrapper .text.coex_schm_status_bit_set_wrapper .text.coex_wifi_channel_set_wrapper .text.coex_wifi_request_wrapper .text.disable_intr_wrapper .text.enable_intr_wrapper .text.esp_event_post_wrapper .text.esp_log_write_wrapper .text.esp_log_writev_wrapper .text.esp_phy_disable_wrapper .text.esp_phy_enable_wrapper .text.esp_read_mac_wrapper .text.event_group_wait_bits_wrapper .text.get_time_wrapper .text.mutex_create_wrapper .text.mutex_delete_wrapper .text.nvs_open_wrapper .text.queue_create_wrapper .text.queue_recv_wrapper .text.queue_send_to_back_wrapper .text.queue_send_to_front_wrapper .text.queue_send_wrapper .text.recursive_mutex_create_wrapper .text.set_intr_wrapper .text.set_isr_wrapper .text.task_create_pinned_to_core_wrapper .text.task_create_wrapper .text.task_get_max_priority_wrapper .text.wifi_clock_disable_wrapper .text.wifi_clock_enable_wrapper .text.wifi_create_queue .text.wifi_create_queue_wrapper .text.wifi_delete_queue .text.wifi_delete_queue_wrapper .text.wifi_reset_mac_wrapper .text.wifi_thread_semphr_free .text.wifi_thread_semphr_get_wrapper)
+-
+-    *(.literal .text .literal.* .text.* .stub .gnu.warning .gnu.linkonce.literal.* .gnu.linkonce.t.*.literal .gnu.linkonce.t.*)
+-    *(.irom0.text) /* catch stray ICACHE_RODATA_ATTR */
+-    *(.fini.literal)
+-    *(.fini)
+-    *(.gnu.version)
+-
+-    _text_end = ABSOLUTE(.);
+-    _instruction_reserved_end = ABSOLUTE(.);  /* This is a symbol marking the flash.text end, this can be used for mmu driver to maintain virtual address */
+-    _etext = .;
+-
+-    /* Similar to _iram_start, this symbol goes here so it is
+-     * resolved by addr2line in preference to the first symbol in
+-     * the flash.text segment.
+-     */
+-
+-    _flash_cache_start = ABSOLUTE(0);
+-  } >default_code_seg AT > ROM
+-
+-  .flash_rodata_dummy (NOLOAD) : ALIGN(0xFFFF)
+-  {
+-    /* Start at the same alignment constraint than .flash.text */
+-
+-    /* . = ALIGN(ALIGNOF(.flash.text)); */
+-
+-    /* Create an empty gap as big as .flash.text section */
+-
+-    . = . + SIZEOF(.flash.text);
+-
+-    /* Prepare the alignment of the section above. Few bytes (0x20) must be
+-     * added for the mapping header.
+-     */
+-
+-    /*. = ALIGN(0x10000) + 0x20; */
+-  } >default_rodata_seg
+ 
+   _image_drom_vma = ADDR(.flash.rodata);
+   _image_drom_lma = LOADADDR(.flash.rodata);
+@@ -347,20 +70,12 @@ SECTIONS
+     . = ALIGN(ALIGNOF(.flash.rodata));
+   } >default_rodata_seg
+ 
+-  .flash.rodata : ALIGN(0xFFFF)
++  .flash.rodata :
+   {
+     _srodata = ABSOLUTE(.);
+     *(EXCLUDE_FILE (*libarch.a:esp_spiflash.* esp_head.* esp_start.*) .rodata)
+     *(EXCLUDE_FILE (*libarch.a:esp_spiflash.* esp_head.* esp_start.*) .rodata.*)
+ 
+-    *(.rodata)
+-    *(.rodata.*)
+-    *(.rodata_wlog_verbose.*)
+-    *(.rodata_wlog_debug.*)
+-    *(.rodata_wlog_info.*)
+-    *(.rodata_wlog_warning.*)
+-    *(.rodata_wlog_error.*)
+-
+     *(.srodata.*)
+ 
+     *(.irom1.text) /* catch stray ICACHE_RODATA_ATTR */
+@@ -376,14 +91,13 @@ SECTIONS
+     KEEP(*(.eh_frame))
+     . = (. + 7) & ~ 3;
+ 
+-    /* C++ constructor and destructor tables:
+-     * RISC-V GCC is configured with --enable-initfini-array so it emits an
+-     * .init_array section instead.
+-     */
++    /* C++ constructor and destructor tables, properly ordered: */
+ 
+     _sinit = ABSOLUTE(.);
+-    KEEP (*(EXCLUDE_FILE (*crtend.* *crtbegin.*) .init_array.*))
+-    KEEP (*(EXCLUDE_FILE (*crtend.* *crtbegin.*) .init_array))
++    KEEP (*crtbegin.o(.ctors))
++    KEEP (*(EXCLUDE_FILE (*crtend.o) .ctors))
++    KEEP (*(SORT(.ctors.*)))
++    KEEP (*(.ctors))
+     _einit = ABSOLUTE(.);
+     KEEP (*crtbegin.o(.dtors))
+     KEEP (*(EXCLUDE_FILE (*crtend.o) .dtors))
+@@ -399,6 +113,7 @@ SECTIONS
+     *(.xt_except_desc_end)
+     *(.dynamic)
+     *(.gnu.version_d)
++    . = ALIGN(4);               /* This table MUST be 4-byte aligned */
+     _erodata = ABSOLUTE(.);
+ 
+     /* Literals are also RO data. */
+@@ -409,7 +124,7 @@ SECTIONS
+     *(.gnu.linkonce.lit4.*)
+     _lit4_end = ABSOLUTE(.);
+     . = ALIGN(4);
+-  } >default_rodata_seg AT > ROM
++  } >drom0_0_seg AT>ROM
+ 
+   .flash.rodata_noload (NOLOAD) :
+   {
+@@ -421,6 +136,103 @@ SECTIONS
+     . = ALIGN (4);
+   } > default_rodata_seg AT > ROM
+ 
++  .iram0.text :
++  {
++    _iram_start = ABSOLUTE(.);
++
++    /* Vectors go to start of IRAM */
++
++    KEEP(*(.exception_vectors.text));
++    . = ALIGN(4);
++
++    *(.iram1)
++    *(.iram1.*)
++    *libarch.a:*cache_hal.*(.text .text.* .literal .literal.*)
++    *libarch.a:*mpu_hal.*(.text .text.* .literal .literal.*)
++    *libarch.a:*mmu_hal.*(.text .text.* .literal .literal.*)
++    *libarch.a:esp_spiflash.*(.literal .text .literal.* .text.*)
++    esp_head.*(.literal .text .literal.* .text.*)
++    esp_start.*(.literal .text .literal.* .text.*)
++    *(.wifi0iram .wifi0iram.*)
++    *(.wifirxiram .wifirxiram.*)
++    *(.wifislpiram .wifislpiram.*)
++    *(.wifislprxiram .wifislprxiram.*)
++  } >iram0_0_seg AT>ROM
++
++  .dram0.dummy (NOLOAD):
++  {
++    /* This section is required to skip .iram0.text area because iram0_0_seg
++     * and dram0_0_seg reflect the same address space on different buses.
++     */
++
++    . = ORIGIN(dram0_0_seg) + _iram_end - _iram_start;
++  } >dram0_0_seg
++
++  .noinit (NOLOAD):
++  {
++    /* This section contains data that is not initialized during load,
++     * or during the application's initialization sequence.
++     */
++
++    . = ALIGN(8);
++    *(.noinit)
++    *(.noinit.*)
++    . = ALIGN(8);
++  } >dram0_0_seg
++
++  .dram0.data :
++  {
++    /* .data initialized on power-up in ROMed configurations. */
++
++    _sdata = ABSOLUTE(.);
++    KEEP (*(.data))
++    KEEP (*(.data.*))
++    KEEP (*(.gnu.linkonce.d.*))
++    KEEP (*(.data1))
++    __global_pointer$ = . + 0x800;
++    KEEP (*(.sdata))
++    KEEP (*(.sdata.*))
++    KEEP (*(.gnu.linkonce.s.*))
++    KEEP (*(.sdata2))
++    KEEP (*(.sdata2.*))
++    KEEP (*(.gnu.linkonce.s2.*))
++    KEEP (*(.jcr))
++    *(.dram1 .dram1.*)
++    *libarch.a:*cache_hal.*(.rodata .rodata.*)
++    *libarch.a:*mpu_hal.*(.rodata .rodata.*)
++    *libarch.a:*mmu_hal.*(.rodata .rodata.*)
++    *libarch.a:esp_spiflash.*(.rodata .rodata.*)
++    esp_head.*(.rodata .rodata.*)
++    esp_start.*(.rodata .rodata.*)
++    _edata = ABSOLUTE(.);
++  } >dram0_0_seg AT>ROM
++
++  /* Shared RAM */
++
++  .dram0.bss (NOLOAD) :
++  {
++    /* .bss initialized on power-up */
++
++    . = ALIGN (8);
++    _sbss = ABSOLUTE(.);
++    *(.dynsbss)
++    *(.sbss)
++    *(.sbss.*)
++    *(.gnu.linkonce.sb.*)
++    *(.scommon)
++    *(.sbss2)
++    *(.sbss2.*)
++    *(.gnu.linkonce.sb2.*)
++    *(.dynbss)
++    KEEP (*(.bss))
++    *(.bss.*)
++    *(.share.mem)
++    *(.gnu.linkonce.b.*)
++    *(COMMON)
++    . = ALIGN(32);
++    _ebss = ABSOLUTE(.);
++  } >dram0_0_seg
++
+   /* Marks the end of IRAM code segment */
+ 
+   .iram0.text_end (NOLOAD) :
+@@ -433,7 +245,7 @@ SECTIONS
+     . = ALIGN(16);
+     *(.iram.data)
+     *(.iram.data*)
+-  } >iram0_0_seg
++  } >iram0_0_seg AT>ROM
+ 
+   .iram0.bss (NOLOAD) :
+   {
+@@ -445,13 +257,53 @@ SECTIONS
+     _iram_end = ABSOLUTE(.);
+   } >iram0_0_seg
+ 
+-  /* RTC fast memory holds RTC wake stub code !*/
++  _image_irom_vma = ADDR(.flash.text);
++  _image_irom_lma = LOADADDR(.flash.text);
++  _image_irom_size = LOADADDR(.flash.text) + SIZEOF(.flash.text) - _image_irom_lma;
++
++  /* The alignment of the ".flash.text" output section is forced to
++   * 0x0000FFFF (64KB) to ensure that it will be allocated at the beginning
++   * of the next available Flash block.
++   * This is required to meet the following constraint from the external
++   * flash MMU:
++   *    VMA % 64KB == LMA % 64KB
++   * i.e. the lower 16 bits of both the virtual address (address seen by the
++   * CPU) and the load address (physical address of the external flash) must
++   * be equal.
++   */
++
++  .flash_text_dummy (NOLOAD) : ALIGN(0x0000FFFF)
++  {
++    /* This section is required to skip .flash.rodata area because irom0_0_seg
++     * and drom0_0_seg reflect the same address space on different buses.
++     */
++
++    . = SIZEOF(.flash.rodata);
++  } >irom0_0_seg
++
++  .flash.text : ALIGN(0x0000FFFF)
++  {
++    _stext = .;
++    _instruction_reserved_start = ABSOLUTE(.);  /* This is a symbol marking the flash.text start, this can be used for mmu driver to maintain virtual address */
++    _text_start = ABSOLUTE(.);
++
++    *(.literal .text .literal.* .text.* .stub .gnu.warning .gnu.linkonce.literal.* .gnu.linkonce.t.*.literal .gnu.linkonce.t.*)
++    *(.irom0.text) /* catch stray ICACHE_RODATA_ATTR */
++    *(.fini.literal)
++    *(.fini)
++    *(.gnu.version)
++    . = ALIGN(4);
++
++    _text_end = ABSOLUTE(.);
++    _instruction_reserved_end = ABSOLUTE(.);  /* This is a symbol marking the flash.text end, this can be used for mmu driver to maintain virtual address */
++    _etext = .;
++  } >irom0_0_seg AT>ROM
+ 
+   .rtc.text :
+   {
+     . = ALIGN(4);
+     *(.rtc.literal .rtc.text)
+-  } >rtc_iram_seg
++  } >rtc_iram_seg AT>ROM
+ 
+   /* RTC BSS section. */
+ 
+@@ -460,15 +312,11 @@ SECTIONS
+     *(.rtc.bss)
+   } >rtc_iram_seg
+ 
+-  /* RTC data section holds RTC wake stub data/rodata. */
+-
+   .rtc.data :
+   {
+     *(.rtc.data)
+-    *(.rtc.data.*)
+     *(.rtc.rodata)
+-    *(.rtc.rodata.*)
+-  } >rtc_iram_seg
++  } >rtc_iram_seg AT>ROM
+ 
+   /* This section holds RTC data that should have fixed addresses.
+    * The data are not initialized at power-up and are retained during deep sleep.
+@@ -477,6 +325,7 @@ SECTIONS
+   {
+     . = ALIGN(4);
+     _rtc_reserved_start = ABSOLUTE(.);
++
+     /* New data can only be added here to ensure existing data are not moved.
+        Because data have adhered to the end of the segment and code is relied on it.
+        >> put new data here << */
+@@ -487,7 +336,4 @@ SECTIONS
+   } > rtc_reserved_seg
+ 
+   _rtc_reserved_length = _rtc_reserved_end - _rtc_reserved_start;
+-  ASSERT((_rtc_reserved_length <= LENGTH(rtc_reserved_seg)),
+-          "RTC reserved segment data does not fit.")
+-
+-}
++}
+\ No newline at end of file

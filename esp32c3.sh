@@ -17,6 +17,7 @@ pip install imgtool
 git submodule update --init apps
 git submodule update --init nuttx
 
+# Fixed GCC
 ESP_GCC_PATH="/opt/esp/tools/riscv32-esp-elf/esp-13.2.0_20240530/riscv32-esp-elf/bin"
 ln -s ${ESP_GCC_PATH}/riscv32-esp-elf-ar ${ESP_GCC_PATH}/riscv64-unknown-elf-ar
 ln -s ${ESP_GCC_PATH}/riscv32-esp-elf-gcc ${ESP_GCC_PATH}/riscv64-unknown-elf-gcc
@@ -25,6 +26,7 @@ ln -s ${ESP_GCC_PATH}/riscv32-esp-elf-nm ${ESP_GCC_PATH}/riscv64-unknown-elf-nm
 ln -s ${ESP_GCC_PATH}/riscv32-esp-elf-objcopy ${ESP_GCC_PATH}/riscv64-unknown-elf-objcopy
 ln -s ${ESP_GCC_PATH}/riscv32-esp-elf-strip ${ESP_GCC_PATH}/riscv64-unknown-elf-strip
 
+# Patch apps
 cd apps
 git apply ../patch/esp32c3-apps.diff
 
@@ -69,6 +71,8 @@ make || true
 git apply --directory=arch/risc-v/src/esp32c3/esp-hal-3rdparty ../patch/esp32c3-mbedtls.diff
 make
 cp nuttx.bin ../out/nuttx-esp32c3.bin
+echo nuttx-esp32c3.bin >> ../out/status.txt
+riscv32-esp-elf-objdump -h nuttx | grep ram0 | awk -F ' ' '{print "0x" $3}' | awk '{s+=$1} END {print "\t" "free:" 393216 - s "\t" "used:" s}' >> ../out/status.txt
 
 # Clean
 make distclean
@@ -84,5 +88,7 @@ make || true
 git apply --directory=arch/risc-v/src/esp32c3/esp-hal-3rdparty ../patch/esp32c3-mbedtls-hal060724.diff
 make
 cp nuttx.bin ../out/nuttx-esp32c3-hal060724.bin
+echo nuttx-esp32c3-hal060724.bin >> ../out/status.txt
+riscv32-esp-elf-objdump -h nuttx | grep ram0 | awk -F ' ' '{print "0x" $3}' | awk '{s+=$1} END {print "\t" "free:" 393216 - s "\t" "used:" s}' >> ../out/status.txt
 
 cd ..

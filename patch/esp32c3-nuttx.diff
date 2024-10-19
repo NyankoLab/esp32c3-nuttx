@@ -151,6 +151,27 @@ index bbc232cc76..1d9c1fe3a9 100644
              return -ENOENT;
            }
  
+diff --git a/boards/risc-v/esp32c3/common/scripts/esp32c3_mcuboot_sections.ld b/boards/risc-v/esp32c3/common/scripts/esp32c3_mcuboot_sections.ld
+index 7549e40fa2..12b576b58e 100644
+--- a/boards/risc-v/esp32c3/common/scripts/esp32c3_mcuboot_sections.ld
++++ b/boards/risc-v/esp32c3/common/scripts/esp32c3_mcuboot_sections.ld
+@@ -73,6 +73,16 @@ SECTIONS
+   .flash.rodata :
+   {
+     _srodata = ABSOLUTE(.);
++    INPUT_SECTION_FLAGS (SHF_STRINGS) *(EXCLUDE_FILE (*libarch.a:esp_spiflash.* esp_head.* esp_start.*) .rodata .rodata* .rodata.*)
++
++    *libapps.a:nsh_parse.*(.rodata .rodata* .rodata.*)
++
++    *(.rodata_wlog_verbose.*)
++    *(.rodata_wlog_debug.*)
++    *(.rodata_wlog_info.*)
++    *(.rodata_wlog_warning.*)
++    *(.rodata_wlog_error.*)
++
+     *(EXCLUDE_FILE (*libarch.a:esp_spiflash.* esp_head.* esp_start.*) .rodata)
+     *(EXCLUDE_FILE (*libarch.a:esp_spiflash.* esp_head.* esp_start.*) .rodata.*)
+ 
 diff --git a/boards/risc-v/esp32c3/common/src/esp_board_spiflash.c b/boards/risc-v/esp32c3/common/src/esp_board_spiflash.c
 index 7e1c40ccb7..7ee8150239 100644
 --- a/boards/risc-v/esp32c3/common/src/esp_board_spiflash.c
@@ -468,7 +489,7 @@ index 8e826bddc5..43ee769719 100644
          break;
        case R_RISCV_32_PCREL:
 diff --git a/syscall/syscall.csv b/syscall/syscall.csv
-index 6b23fcd604..479484bda0 100644
+index 6b23fcd604..4aa157db73 100644
 --- a/syscall/syscall.csv
 +++ b/syscall/syscall.csv
 @@ -1,5 +1,6 @@
@@ -478,7 +499,7 @@ index 6b23fcd604..479484bda0 100644
  "accept4","sys/socket.h","defined(CONFIG_NET)","int","int","FAR struct sockaddr *","FAR socklen_t *","int"
  "adjtime","sys/time.h","defined(CONFIG_CLOCK_TIMEKEEPING)","int","FAR const struct timeval *","FAR struct timeval *"
  "aio_cancel","aio.h","defined(CONFIG_FS_AIO)","int","int","FAR struct aiocb *"
-@@ -60,6 +69,7 @@
+@@ -60,6 +61,7 @@
  "lseek","unistd.h","","off_t","int","off_t","int"
  "lstat","sys/stat.h","","int","FAR const char *","FAR struct stat *"
  "lutimens","sys/stat.h","","int","FAR const char *","const struct timespec [2]|FAR const struct timespec *"
@@ -486,7 +507,7 @@ index 6b23fcd604..479484bda0 100644
  "mkdir","sys/stat.h","!defined(CONFIG_DISABLE_MOUNTPOINT)","int","FAR const char *","mode_t"
  "mmap","sys/mman.h","","FAR void *","FAR void *","size_t","int","int","int","off_t"
  "modhandle","nuttx/module.h","defined(CONFIG_MODULE)","FAR void *","FAR const char *"
-@@ -177,9 +187,11 @@
+@@ -177,9 +179,11 @@
  "socketpair","sys/socket.h","defined(CONFIG_NET)","int","int","int","int","int [2]|FAR int *"
  "stat","sys/stat.h","","int","FAR const char *","FAR struct stat *"
  "statfs","sys/statfs.h","","int","FAR const char *","FAR struct statfs *"
@@ -498,7 +519,7 @@ index 6b23fcd604..479484bda0 100644
  "task_create","sched.h","!defined(CONFIG_BUILD_KERNEL)", "int","FAR const char *","int","int","main_t","FAR char * const []|FAR char * const *"
  "task_delete","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
  "task_restart","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
-@@ -199,7 +211,301 @@
+@@ -199,7 +203,301 @@
  "unsetenv","stdlib.h","!defined(CONFIG_DISABLE_ENVIRON)","int","FAR const char *"
  "up_fork","nuttx/arch.h","defined(CONFIG_ARCH_HAVE_FORK)","pid_t"
  "utimens","sys/stat.h","","int","FAR const char *","const struct timespec [2]|FAR const struct timespec *"

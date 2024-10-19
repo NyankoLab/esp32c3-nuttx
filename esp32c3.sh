@@ -72,8 +72,10 @@ git apply --directory=arch/risc-v/src/esp32c3/esp-hal-3rdparty ../patch/esp32c3-
 make
 cp nuttx.bin ../out/nuttx-esp32c3.bin
 echo nuttx-esp32c3.bin >> ../out/status.txt
-imgtool dumpinfo nuttx.bin | grep img_size | awk -F ' ' '{s+=$2} END {print "\t" "firmware:" s}' >> ../out/status.txt
-riscv32-esp-elf-objdump -h nuttx | grep .[di]ram | awk -F ' ' '{print "0x" $3}' | awk '{s+=$1} END {print "\t" "free:" 16384 + 393216 - s "\n\t" "used:" s}' >> ../out/status.txt
+git log -1 --pretty=" * nuttx:%H (%cs)" >> ../out/status.txt
+git -C arch/risc-v/src/esp32c3/esp-hal-3rdparty log -1 --pretty=" * hal:%H (%cs)" >> ../out/status.txt
+imgtool dumpinfo nuttx.bin | grep img_size | awk -F ' ' '{print " * " "firmware:" 0 + $2 " (" $2 ")"}' >> ../out/status.txt
+riscv32-esp-elf-objdump -h nuttx | grep .[di]ram | awk -F ' ' '{print "0x" $3}' | awk '{s+=$1} END {print " * " "free:" 16384 + 393216 - s "\n * " "used:" s}' >> ../out/status.txt
 
 # Clean
 make distclean
@@ -90,7 +92,9 @@ git apply --directory=arch/risc-v/src/esp32c3/esp-hal-3rdparty ../patch/esp32c3-
 make
 cp nuttx.bin ../out/nuttx-esp32c3-hal060724.bin
 echo nuttx-esp32c3-hal060724.bin >> ../out/status.txt
-imgtool dumpinfo nuttx.bin | grep img_size | awk -F ' ' '{s+=$2} END {print "\t" "firmware:" s}' >> ../out/status.txt
-riscv32-esp-elf-objdump -h nuttx | grep .[di]ram | awk -F ' ' '{print "0x" $3}' | awk '{s+=$1} END {print "\t" "free:" 16384 + 393216 - s "\n\t" "used:" s}' >> ../out/status.txt
+git log -1 --pretty=" * nuttx:%H (%cs)" >> ../out/status.txt
+git -C arch/risc-v/src/esp32c3/esp-hal-3rdparty log -1 --pretty=" * hal:%H (%cs)" >> ../out/status.txt
+imgtool dumpinfo nuttx.bin | grep img_size | awk -F ' ' '{print " * " "firmware:" 0 + $2 " (" $2 ")"}' >> ../out/status.txt
+riscv32-esp-elf-objdump -h nuttx | grep .[di]ram | awk -F ' ' '{print "0x" $3}' | awk '{s+=$1} END {print " * " "free:" 16384 + 393216 - s "\n * " "used:" s}' >> ../out/status.txt
 
 cd ..

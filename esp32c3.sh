@@ -71,15 +71,16 @@ make || true
 git apply --directory=arch/risc-v/src/esp32c3/esp-hal-3rdparty ../patch/esp32c3-mbedtls.diff
 make
 cp nuttx.bin ../out/nuttx-esp32c3.bin
-echo nuttx-esp32c3.bin >> ../out/status.txt
-git log -1 --pretty=" * nuttx:%H (%cs)" >> ../out/status.txt
-git -C arch/risc-v/src/esp32c3/esp-hal-3rdparty log -1 --pretty=" * hal:%H (%cs)" >> ../out/status.txt
-imgtool dumpinfo nuttx.bin | grep img_size | awk -F ' ' '{print " * " "firmware:" 0 + $2 " (" $2 ")"}' >> ../out/status.txt
-riscv32-esp-elf-objdump -h nuttx | grep .[di]ram | awk -F ' ' '{print "0x" $3}' | awk '{s+=$1} END {print " * " "free:" 16384 + 393216 - s "\n * " "used:" s}' >> ../out/status.txt
+echo nuttx-esp32c3.bin >> ../out/readme.md
+git log -1 --pretty=" * nuttx:%cs (%h)" >> ../out/readme.md
+git -C arch/risc-v/src/esp32c3/esp-hal-3rdparty log -1 --pretty=" * hal:%cs (%h)" >> ../out/readme.md
+imgtool dumpinfo nuttx.bin | grep img_size | awk -F ' ' '{print " * " "firmware:" 0 + $2 " (" $2 ")"}' >> ../out/readme.md
+riscv32-esp-elf-objdump -h nuttx | grep .[di]ram | awk -F ' ' '{print "0x" $3}' | awk '{s+=$1} END {print " * " "free:" 16384 + 393216 - s "\n * " "used:" s}' >> ../out/readme.md
 
 # Clean
 make distclean
 git reset --hard
+echo -e "\n" >> ../out/readme.md
 
 # HAL-060724
 git apply ../patch/esp32c3-nuttx-hal060724.diff
@@ -91,10 +92,10 @@ make || true
 git apply --directory=arch/risc-v/src/esp32c3/esp-hal-3rdparty ../patch/esp32c3-mbedtls-hal060724.diff
 make
 cp nuttx.bin ../out/nuttx-esp32c3-hal060724.bin
-echo nuttx-esp32c3-hal060724.bin >> ../out/status.txt
-git log -1 --pretty=" * nuttx:%H (%cs)" >> ../out/status.txt
-git -C arch/risc-v/src/esp32c3/esp-hal-3rdparty log -1 --pretty=" * hal:%H (%cs)" >> ../out/status.txt
-imgtool dumpinfo nuttx.bin | grep img_size | awk -F ' ' '{print " * " "firmware:" 0 + $2 " (" $2 ")"}' >> ../out/status.txt
-riscv32-esp-elf-objdump -h nuttx | grep .[di]ram | awk -F ' ' '{print "0x" $3}' | awk '{s+=$1} END {print " * " "free:" 16384 + 393216 - s "\n * " "used:" s}' >> ../out/status.txt
+echo nuttx-esp32c3-hal060724.bin >> ../out/readme.md
+git log -1 --pretty=" * nuttx:%cs (%h)" >> ../out/readme.md
+git -C arch/risc-v/src/esp32c3/esp-hal-3rdparty log -1 --pretty=" * hal:%cs (%h)" >> ../out/readme.md
+imgtool dumpinfo nuttx.bin | grep img_size | awk -F ' ' '{print " * " "firmware:" 0 + $2 " (" $2 ")"}' >> ../out/readme.md
+riscv32-esp-elf-objdump -h nuttx | grep .[di]ram | awk -F ' ' '{print "0x" $3}' | awk '{s+=$1} END {print " * " "free:" 16384 + 393216 - s "\n * " "used:" s}' >> ../out/readme.md
 
 cd ..

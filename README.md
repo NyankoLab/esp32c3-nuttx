@@ -13,10 +13,9 @@
 - [x] LittleFS File System
 - [x] Local Time
 - [x] MQTT Client
-- [x] NTPClient
-- [x] Reboot
+- [x] NTP Client
 - [x] Telnet Server
-- [x] uip WebServer
+- [x] uip Web Server
 - [x] WiFi SoftAP
 - [x] WiFi Station
 

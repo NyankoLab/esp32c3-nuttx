@@ -36,6 +36,7 @@ cp ../../../patch/homekit/* .
 git clone https://github.com/apple/HomeKitADK
 cd HomeKitADK
 git apply ../0001_patch_nuttx.patch
+cp -r ../../../../patch/ed25519-ref10 PAL/Crypto/MbedTLS
 cd ..
 cd ../..
 

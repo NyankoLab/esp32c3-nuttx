@@ -29,11 +29,11 @@ jobs:
         with:
           path: buildartifacts/
       - name: Update release
-        if: "github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')"
+        if: "github.ref == 'refs/heads/releases/12.6' || startsWith(github.ref, 'refs/tags/')"
         uses: pyTooling/Actions/releaser@r0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: |
             buildartifacts/nuttx-builds/*
-          tag: latest
+          tag: 12.6
           rm: true

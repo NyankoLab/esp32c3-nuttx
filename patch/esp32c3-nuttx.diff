@@ -152,16 +152,17 @@ index bbc232cc76..1d9c1fe3a9 100644
            }
  
 diff --git a/boards/risc-v/esp32c3/common/scripts/esp32c3_mcuboot_sections.ld b/boards/risc-v/esp32c3/common/scripts/esp32c3_mcuboot_sections.ld
-index 7549e40fa2..12b576b58e 100644
+index 7549e40fa2..8366660074 100644
 --- a/boards/risc-v/esp32c3/common/scripts/esp32c3_mcuboot_sections.ld
 +++ b/boards/risc-v/esp32c3/common/scripts/esp32c3_mcuboot_sections.ld
-@@ -73,6 +73,16 @@ SECTIONS
+@@ -73,6 +73,17 @@ SECTIONS
    .flash.rodata :
    {
      _srodata = ABSOLUTE(.);
 +    INPUT_SECTION_FLAGS (SHF_STRINGS) *(EXCLUDE_FILE (*libarch.a:esp_spiflash.* esp_head.* esp_start.*) .rodata .rodata* .rodata.*)
 +
 +    *libapps.a:nsh_parse.*(.rodata .rodata* .rodata.*)
++    *libapps.a:HAP*.*(.rodata.*.*)
 +
 +    *(.rodata_wlog_verbose.*)
 +    *(.rodata_wlog_debug.*)
@@ -173,7 +174,7 @@ index 7549e40fa2..12b576b58e 100644
      *(EXCLUDE_FILE (*libarch.a:esp_spiflash.* esp_head.* esp_start.*) .rodata.*)
  
 diff --git a/boards/risc-v/esp32c3/common/src/esp_board_spiflash.c b/boards/risc-v/esp32c3/common/src/esp_board_spiflash.c
-index 7e1c40ccb7..7ee8150239 100644
+index 7e1c40ccb7..fba25b3cfc 100644
 --- a/boards/risc-v/esp32c3/common/src/esp_board_spiflash.c
 +++ b/boards/risc-v/esp32c3/common/src/esp_board_spiflash.c
 @@ -58,18 +58,105 @@
@@ -282,6 +283,42 @@ index 7e1c40ccb7..7ee8150239 100644
  /****************************************************************************
   * Name: setup_smartfs
   *
+@@ -301,7 +388,7 @@ static int init_storage_partition(void)
+ 
+ #if defined (CONFIG_ESPRESSIF_SPIFLASH_SMARTFS)
+ 
+-  ret = setup_smartfs(0, mtd, "/data");
++  ret = setup_smartfs(0, mtd, CONFIG_ESPRESSIF_SPIFLASH_FS_MOUNT_PT);
+   if (ret < 0)
+     {
+       syslog(LOG_ERR, "ERROR: Failed to setup smartfs\n");
+@@ -310,7 +397,7 @@ static int init_storage_partition(void)
+ 
+ #elif defined (CONFIG_ESPRESSIF_SPIFLASH_NXFFS)
+ 
+-  ret = setup_nxffs(mtd, "/data");
++  ret = setup_nxffs(mtd, CONFIG_ESPRESSIF_SPIFLASH_FS_MOUNT_PT);
+   if (ret < 0)
+     {
+       syslog(LOG_ERR, "ERROR: Failed to setup nxffs\n");
+@@ -320,7 +407,7 @@ static int init_storage_partition(void)
+ #elif defined (CONFIG_ESPRESSIF_SPIFLASH_LITTLEFS)
+ 
+   const char *path = "/dev/espflash";
+-  ret = setup_littlefs(path, mtd, "/data", 0755);
++  ret = setup_littlefs(path, mtd, CONFIG_ESPRESSIF_SPIFLASH_FS_MOUNT_PT, 0755);
+   if (ret < 0)
+     {
+       syslog(LOG_ERR, "ERROR: Failed to setup littlefs\n");
+@@ -330,7 +417,7 @@ static int init_storage_partition(void)
+ #elif defined (CONFIG_ESPRESSIF_SPIFLASH_SPIFFS)
+ 
+   const char *path = "/dev/espflash";
+-  ret = setup_spiffs(path, mtd, "/data", 0755);
++  ret = setup_spiffs(path, mtd, CONFIG_ESPRESSIF_SPIFLASH_FS_MOUNT_PT, 0755);
+   if (ret < 0)
+     {
+       syslog(LOG_ERR, "ERROR: Failed to setup spiffs\n");
 @@ -406,6 +493,14 @@ int board_spiflash_init(void)
  
    esp_spiflash_init();
@@ -297,21 +334,6 @@ index 7e1c40ccb7..7ee8150239 100644
    ret = init_storage_partition();
    if (ret < 0)
      {
-diff --git a/boards/risc-v/esp32c3/esp32c3-generic/src/Make.defs b/boards/risc-v/esp32c3/esp32c3-generic/src/Make.defs
-index b23cab8ea0..500ed940a5 100644
---- a/boards/risc-v/esp32c3/esp32c3-generic/src/Make.defs
-+++ b/boards/risc-v/esp32c3/esp32c3-generic/src/Make.defs
-@@ -38,6 +38,10 @@ ifeq ($(CONFIG_ARCH_BUTTONS),y)
-   CSRCS += esp32c3_buttons.c
- endif
- 
-+ifeq ($(CONFIG_ETC_ROMFS),y)
-+  RCRAWS = etc/init.d/rcS
-+endif
-+
- DEPPATH += --dep-path board
- VPATH += :board
- CFLAGS += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src$(DELIM)board$(DELIM)board
 diff --git a/libs/libc/libc.csv b/libs/libc/libc.csv
 index 3623e7ff62..04f50a06e6 100644
 --- a/libs/libc/libc.csv

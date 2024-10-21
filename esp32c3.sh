@@ -58,8 +58,6 @@ cp ../patch/mbedtls_sslutils.c arch/risc-v/src/common/espressif
 cp ../patch/sslutil.h arch/risc-v/src/common/espressif
 cp ../patch/esp32c3_attr.h arch/risc-v/src/esp32c3
 cp ../patch/esp32c3_textheap.c arch/risc-v/src/esp32c3
-mkdir -p boards/risc-v/esp32c3/esp32c3-generic/src/etc/init.d
-cp ../patch/rcS boards/risc-v/esp32c3/esp32c3-generic/src/etc/init.d
 mkdir -p ../out
 
 # Current
@@ -72,8 +70,9 @@ make || true
 git apply --directory=arch/risc-v/src/esp32c3/esp-hal-3rdparty ../patch/esp32c3-mbedtls.diff
 make
 cp nuttx.bin ../out/nuttx-esp32c3.bin
-echo nuttx-esp32c3.bin >> ../out/status.txt
-imgtool dumpinfo nuttx.bin | grep img_size | awk -F ' ' '{s+=$2} END {print "\t" "firmware:" s}' >> ../out/status.txt
-riscv32-esp-elf-objdump -h nuttx | grep .[di]ram | awk -F ' ' '{print "0x" $3}' | awk '{s+=$1} END {print "\t" "free:" 16384 + 393216 - s "\n\t" "used:" s}' >> ../out/status.txt
+git log -1 --pretty=" * nuttx:%cs (%h)" >> ../out/readme.md
+git -C arch/risc-v/src/esp32c3/esp-hal-3rdparty log -1 --pretty=" * hal:%cs (%h)" >> ../out/readme.md
+imgtool dumpinfo nuttx.bin | grep img_size | awk -F ' ' '{print " * " "firmware:" 0 + $2 " (" $2 ")"}' >> ../out/readme.md
+riscv32-esp-elf-objdump -h nuttx | grep .[di]ram | awk -F ' ' '{print "0x" $3}' | awk '{s+=$1} END {print " * " "free:" 16384 + 393216 - s "\n * " "used:" s}' >> ../out/readme.md
 
 cd ..

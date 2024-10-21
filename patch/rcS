@@ -1,2 +1,0 @@
-mount -t littlefs /dev/espflash /home
-sh /home/nuttx/.bashrc

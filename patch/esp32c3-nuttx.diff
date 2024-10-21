@@ -152,17 +152,22 @@ index bbc232cc76..1d9c1fe3a9 100644
            }
  
 diff --git a/boards/risc-v/esp32c3/common/scripts/esp32c3_mcuboot_sections.ld b/boards/risc-v/esp32c3/common/scripts/esp32c3_mcuboot_sections.ld
-index 7549e40fa2..8366660074 100644
+index 7549e40fa2..cf6327c1ab 100644
 --- a/boards/risc-v/esp32c3/common/scripts/esp32c3_mcuboot_sections.ld
 +++ b/boards/risc-v/esp32c3/common/scripts/esp32c3_mcuboot_sections.ld
-@@ -73,6 +73,17 @@ SECTIONS
+@@ -73,6 +73,22 @@ SECTIONS
    .flash.rodata :
    {
      _srodata = ABSOLUTE(.);
 +    INPUT_SECTION_FLAGS (SHF_STRINGS) *(EXCLUDE_FILE (*libarch.a:esp_spiflash.* esp_head.* esp_start.*) .rodata .rodata* .rodata.*)
 +
-+    *libapps.a:nsh_parse.*(.rodata .rodata* .rodata.*)
-+    *libapps.a:HAP*.*(.rodata.*.*)
++    *libapps.a:HAP*.*(.rodata.salt.* .rodata.info.* .rodata.nonce.* .rodata.srpUserName.* .rodata.userName.*)
++    *libapps.a:nsh_envcmds.*(.rodata.g_* .srodata.g_*)
++    *libapps.a:nsh_parse.*(.rodata.g_* .srodata.g_*)
++    *libapps.a:nsh_proccmds.*(.rodata.g_* .srodata.g_*)
++    *libapps.a:stackmonitor.*(.rodata.g_* .srodata.g_*)
++
++    *(.rodata.__FUNCTION__.* .rodata.__func__.*)
 +
 +    *(.rodata_wlog_verbose.*)
 +    *(.rodata_wlog_debug.*)

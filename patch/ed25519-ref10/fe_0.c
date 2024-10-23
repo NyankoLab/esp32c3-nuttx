@@ -6,8 +6,9 @@ h = 0
 
 void fe_0(fe h)
 {
+#if CRYPTO_SHRINK
   int i;
-#if CRYPTO_REDUCE
+
   for (i = 0;i < 10;++i)
     h[i] = 0;
 #else

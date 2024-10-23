@@ -9,13 +9,14 @@ Preconditions: b in {0,1}.
 
 void fe_cswap(fe f,fe g,unsigned int b)
 {
+#if CRYPTO_SHRINK
   int i;
-  crypto_int32 x;
-#if CRYPTO_REDUCE
+
   b = -b;
+
   for (i = 0;i < 10;++i)
   {
-    x = (f[i] ^ g[i]) & b;
+    crypto_int32 x = (f[i] ^ g[i]) & b;
     f[i] ^= x;
     g[i] ^= x;
   }

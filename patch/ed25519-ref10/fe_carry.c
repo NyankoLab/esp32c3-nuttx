@@ -1,10 +1,11 @@
 #include "fe.h"
 #include "crypto_int64.h"
-#include "crypto_uint64.h"
 
 void fe_carry(fe s,crypto_int64 *h)
 {
+#if CRYPTO_SHRINK
   int i;
+#endif
   crypto_int64 carry0;
   crypto_int64 carry1;
   crypto_int64 carry2;
@@ -66,7 +67,7 @@ void fe_carry(fe s,crypto_int64 *h)
   /* |h0| <= 2^25; from now on fits into int32 unchanged */
   /* |h1| <= 1.01*2^24 */
 
-#if CRYPTO_REDUCE
+#if CRYPTO_SHRINK
   for (i = 0;i < 10;++i)
     s[i] = h[i];
 #else

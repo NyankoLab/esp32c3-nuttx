@@ -3,7 +3,6 @@
 #include "crypto_uint32.h"
 #include "crypto_uint64.h"
 
-/*
 static crypto_uint64 load_3(const unsigned char *in)
 {
   crypto_uint64 result;
@@ -22,7 +21,6 @@ static crypto_uint64 load_4(const unsigned char *in)
   result |= ((crypto_uint64) in[3]) << 24;
   return result;
 }
-*/
 
 /*
 Input:
@@ -122,7 +120,7 @@ void sc_muladd(unsigned char *s,const unsigned char *a,const unsigned char *b,co
   t[21] = a10*b11 + a11*b10;
   t[22] = a11*b11;
   t[23] = 0;
-#if CRYPTO_REDUCE
+#if CRYPTO_SHRINK
   sc_reduce_carry(t, 12, 11);
 #else
   carry0 = (t[0] + (1<<20)) >> 21; t[1] += carry0; t[0] -= carry0 << 21;

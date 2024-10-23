@@ -1,7 +1,5 @@
 #include "sc.h"
 #include "crypto_int64.h"
-#include "crypto_uint32.h"
-#include "crypto_uint64.h"
 
 void sc_reduce_carry(crypto_int64 *s, int c, int d)
 {

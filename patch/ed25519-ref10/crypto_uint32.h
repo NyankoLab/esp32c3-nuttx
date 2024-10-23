@@ -1,6 +1,7 @@
 #ifndef crypto_uint32_h
 #define crypto_uint32_h
 
-typedef unsigned long crypto_uint32;
+#include <inttypes.h>
+#define crypto_uint32 uint32_t
 
 #endif

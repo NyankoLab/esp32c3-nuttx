@@ -6,8 +6,9 @@ h = f
 
 void fe_copy(fe h,const fe f)
 {
+#if CRYPTO_SHRINK
   int i;
-#if CRYPTO_REDUCE
+
   for (i = 0;i < 10;++i)
     h[i] = f[i];
 #else

@@ -223,7 +223,7 @@ index a776c47..d881492 100644
  #if __has_feature(nullability)
  #pragma clang assume_nonnull begin
 diff --git a/PAL/Crypto/MbedTLS/HAPMbedTLS.c b/PAL/Crypto/MbedTLS/HAPMbedTLS.c
-index 85a6926..6a01c20 100644
+index 85a6926..80513f6 100644
 --- a/PAL/Crypto/MbedTLS/HAPMbedTLS.c
 +++ b/PAL/Crypto/MbedTLS/HAPMbedTLS.c
 @@ -22,30 +22,106 @@
@@ -323,7 +323,7 @@ index 85a6926..6a01c20 100644
 +#define ED25519_REF10 1
 +#if ED25519_REF10
 +#include "ed25519-ref10/ed25519.c"
-+int crypto_hash_sha512_tweet(unsigned char* output, const unsigned char* input, unsigned long long ilen) {
++int crypto_hash_sha512(unsigned char* output, const unsigned char* input, unsigned long long ilen) {
 +    return mbedtls_sha512(input, ilen, output, 0);
 +}
 +#else
@@ -393,7 +393,14 @@ index 85a6926..6a01c20 100644
  }
  
  #endif
-@@ -119,9 +220,9 @@ void HAP_X25519_scalarmult(
+@@ -115,13 +216,16 @@ void HAP_X25519_scalarmult(
+         uint8_t r[X25519_BYTES],
+         const uint8_t n[X25519_SCALAR_BYTES],
+         const uint8_t p[X25519_BYTES]) {
++#if ED25519_REF10
++    crypto_scalarmult(r, n, p);
++#else
+     WITH_ECP_KEYPAIR(our_key, {
          int ret = mbedtls_ecp_read_key(MBEDTLS_ECP_DP_CURVE25519, &our_key, n, X25519_SCALAR_BYTES);
          HAPAssert(ret == 0);
          WITH_ECP_KEYPAIR(their_key, {
@@ -405,7 +412,17 @@ index 85a6926..6a01c20 100644
              HAPAssert(ret == 0);
              WITH_ECDH(ecdh, {
                  ret = mbedtls_ecdh_get_params(&ecdh, &their_key, MBEDTLS_ECDH_THEIRS);
-@@ -141,10 +242,10 @@ void HAP_X25519_scalarmult_base(uint8_t r[X25519_BYTES], const uint8_t n[X25519_
+@@ -135,19 +239,24 @@ void HAP_X25519_scalarmult(
+             });
+         });
+     });
++#endif
+ }
+ 
+ void HAP_X25519_scalarmult_base(uint8_t r[X25519_BYTES], const uint8_t n[X25519_SCALAR_BYTES]) {
++#if ED25519_REF10
++    crypto_scalarmult_base(r, n);
++#else
      WITH_ECP_KEYPAIR(key, {
          int ret = mbedtls_ecp_read_key(MBEDTLS_ECP_DP_CURVE25519, &key, n, X25519_SCALAR_BYTES);
          HAPAssert(ret == 0);
@@ -418,7 +435,11 @@ index 85a6926..6a01c20 100644
          HAPAssert(ret == 0);
          HAPAssert(out_len == X25519_BYTES);
      });
-@@ -428,11 +529,11 @@ void HAP_srp_proof_m2(
++#endif
+ }
+ 
+ #ifndef CUSTOM_SRP
+@@ -428,11 +537,11 @@ void HAP_srp_proof_m2(
  void HAP_sha1(uint8_t md[SHA1_BYTES], const uint8_t* data, size_t size) {
      mbedtls_sha1_context ctx;
      mbedtls_sha1_init(&ctx);
@@ -433,7 +454,7 @@ index 85a6926..6a01c20 100644
      HAPAssert(ret == 0);
      mbedtls_sha1_free(&ctx);
  }
-@@ -440,11 +541,11 @@ void HAP_sha1(uint8_t md[SHA1_BYTES], const uint8_t* data, size_t size) {
+@@ -440,11 +549,11 @@ void HAP_sha1(uint8_t md[SHA1_BYTES], const uint8_t* data, size_t size) {
  void HAP_sha256(uint8_t md[SHA256_BYTES], const uint8_t* data, size_t size) {
      mbedtls_sha256_context ctx;
      mbedtls_sha256_init(&ctx);

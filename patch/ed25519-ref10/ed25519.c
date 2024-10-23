@@ -1,7 +1,16 @@
 #pragma clang diagnostic ignored "-Wshorten-64-to-32"
+#pragma clang diagnostic ignored "-Wunused-function"
 #pragma clang diagnostic ignored "-Wunused-variable"
+
 #pragma GCC diagnostic ignored "-Wshadow"
+#pragma GCC diagnostic ignored "-Wunused-function"
 #pragma GCC diagnostic ignored "-Wunused-variable"
+
+#ifndef CRYPTO_NAMESPACE
+#define CRYPTO_NAMESPACE(s) s
+#endif
+
+#define CRYPTO_SHRINK 1
 
 #include "api.h"
 #include "fe_0.c"
@@ -37,10 +46,19 @@
 #include "ge_p3_to_cached.c"
 #include "ge_p3_to_p2.c"
 #include "ge_p3_tobytes.c"
+#include "ge_precomp_0.c"
 #include "ge_scalarmult_base.c"
 #include "ge_sub.c"
 #include "ge_tobytes.c"
+#undef load_3
+#undef load_4
+#define load_3 load_3_muladd
+#define load_4 load_4_muladd
 #include "sc_muladd.c"
+#undef load_3
+#undef load_4
+#define load_3 load_3_reduce
+#define load_4 load_4_reduce
 #include "sc_reduce.c"
 #include "sc_reduce_carry.c"
 #include "sc_reduce_internal.c"
@@ -48,3 +66,4 @@
 #include "open.c"
 #include "scalarmult.c"
 #include "sign.c"
+#include "base.c"

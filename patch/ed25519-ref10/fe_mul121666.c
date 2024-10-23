@@ -14,8 +14,8 @@ Postconditions:
 
 void fe_mul121666(fe h,const fe f)
 {
+#if CRYPTO_SHRINK
   int i;
-#if CRYPTO_REDUCE
   crypto_int64 t[10];
 
   for (i = 0;i < 10;++i)

@@ -12,8 +12,9 @@ Postconditions:
 
 void fe_neg(fe h,const fe f)
 {
+#if CRYPTO_SHRINK
   int i;
-#if CRYPTO_REDUCE
+
   for (i = 0;i < 10;++i)
     h[i] = -f[i];
 #else

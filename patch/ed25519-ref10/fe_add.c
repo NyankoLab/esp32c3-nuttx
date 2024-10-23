@@ -14,8 +14,9 @@ Postconditions:
 
 void fe_add(fe h,const fe f,const fe g)
 {
+#if CRYPTO_SHRINK
   int i;
-#if CRYPTO_REDUCE
+
   for (i = 0;i < 10;++i)
     h[i] = f[i] + g[i];
 #else

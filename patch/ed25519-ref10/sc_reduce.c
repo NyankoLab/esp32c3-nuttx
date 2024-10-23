@@ -3,7 +3,6 @@
 #include "crypto_uint32.h"
 #include "crypto_uint64.h"
 
-/*
 static crypto_uint64 load_3(const unsigned char *in)
 {
   crypto_uint64 result;
@@ -22,7 +21,6 @@ static crypto_uint64 load_4(const unsigned char *in)
   result |= ((crypto_uint64) in[3]) << 24;
   return result;
 }
-*/
 
 /*
 Input:

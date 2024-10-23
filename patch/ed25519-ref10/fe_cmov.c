@@ -9,9 +9,11 @@ Preconditions: b in {0,1}.
 
 void fe_cmov(fe f,const fe g,unsigned int b)
 {
+#if CRYPTO_SHRINK
   int i;
-#if CRYPTO_REDUCE
+
   b = -b;
+
   for (i = 0;i < 10;++i)
     f[i] ^= (f[i] ^ g[i]) & b;
 #else

@@ -28,7 +28,6 @@ Bounds on each t[i] vary depending on context.
 #define fe_sub CRYPTO_NAMESPACE(fe_sub)
 #define fe_neg CRYPTO_NAMESPACE(fe_neg)
 #define fe_mul CRYPTO_NAMESPACE(fe_mul)
-#define fe_sq_mul CRYPTO_NAMESPACE(fe_sq_mul)
 #define fe_sq CRYPTO_NAMESPACE(fe_sq)
 #define fe_sq2 CRYPTO_NAMESPACE(fe_sq2)
 #define fe_mul121666 CRYPTO_NAMESPACE(fe_mul121666)
@@ -51,7 +50,6 @@ extern void fe_add(fe,const fe,const fe);
 extern void fe_sub(fe,const fe,const fe);
 extern void fe_neg(fe,const fe);
 extern void fe_mul(fe,const fe,const fe);
-extern void fe_sq_mul(fe,const fe,unsigned int);
 extern void fe_sq(fe,const fe);
 extern void fe_sq2(fe,const fe);
 extern void fe_mul121666(fe,const fe);

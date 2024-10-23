@@ -169,7 +169,7 @@ void fe_mul(fe h,const fe f,const fe g)
   crypto_int64 f9g7_38 = f9_2 * (crypto_int64) g7_19;
   crypto_int64 f9g8_19 = f9   * (crypto_int64) g8_19;
   crypto_int64 f9g9_38 = f9_2 * (crypto_int64) g9_19;
-#if CRYPTO_REDUCE
+#if CRYPTO_SHRINK
   crypto_int64 t[10];
 
   t[0] = f0g0+f1g9_38+f2g8_19+f3g7_38+f4g6_19+f5g5_38+f6g4_19+f7g3_38+f8g2_19+f9g1_38;

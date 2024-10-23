@@ -1,7 +1,5 @@
 #include "sc.h"
 #include "crypto_int64.h"
-#include "crypto_uint32.h"
-#include "crypto_uint64.h"
 
 /*
 Input:
@@ -49,7 +47,7 @@ void sc_reduce_internal(unsigned char *t, crypto_int64 *s)
   crypto_int64 carry14;
   crypto_int64 carry15;
   crypto_int64 carry16;
-#if CRYPTO_REDUCE
+#if CRYPTO_SHRINK
   sc_reduce_mul(&s[11], &s[23], 6);
   sc_reduce_carry(&s[6], 6, 5);
   sc_reduce_mul(&s[5], &s[17], 6);

@@ -18,10 +18,13 @@ See fe_mul.c for discussion of implementation strategy.
 
 void fe_sq2(fe h,const fe f)
 {
-#if CRYPTO_REDUCE
-  fe f2;
-  fe_add(f2, f, f);
-  fe_mul(h, f, f2);
+#if CRYPTO_SHRINK
+  int i;
+
+  for (i = 0;i < 10;++i)
+    h[i] = f[i] + f[i];
+
+  fe_mul(h, h, f);
 #else
   crypto_int32 f0 = f[0];
   crypto_int32 f1 = f[1];

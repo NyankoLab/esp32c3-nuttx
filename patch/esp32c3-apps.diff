@@ -112,7 +112,7 @@ index 4602e65e9..8e8c9fb6f 100644
                      "close",
  #endif
                      mime,
-+                    strstr(mime, "image") ? "Cache-Control: max-age=86400\r\n" : "",
++                    strcmp(mime, "text/html") ? "Cache-Control: max-age=86400\r\n" : "",
                      contentlen
                      );
  

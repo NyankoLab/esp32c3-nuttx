@@ -549,7 +549,7 @@ index 6b23fcd604..4aa157db73 100644
  "task_create","sched.h","!defined(CONFIG_BUILD_KERNEL)", "int","FAR const char *","int","int","main_t","FAR char * const []|FAR char * const *"
  "task_delete","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
  "task_restart","sched.h","!defined(CONFIG_BUILD_KERNEL)","int","pid_t"
-@@ -199,7 +203,301 @@
+@@ -199,7 +203,302 @@
  "unsetenv","stdlib.h","!defined(CONFIG_DISABLE_ENVIRON)","int","FAR const char *"
  "up_fork","nuttx/arch.h","defined(CONFIG_ARCH_HAVE_FORK)","pid_t"
  "utimens","sys/stat.h","","int","FAR const char *","const struct timespec [2]|FAR const struct timespec *"
@@ -851,6 +851,7 @@ index 6b23fcd604..4aa157db73 100644
 +"HAPPlatformTCPStreamManagerCreate","../../apps/netutils/homekit/HomeKitADK/PAL/POSIX/HAPPlatformTCPStreamManager+Init.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","HAPPlatformTCPStreamManagerRef, const HAPPlatformTCPStreamManagerOptions *"
 +"HAPPlatformTCPStreamManagerRelease","../../apps/netutils/homekit/HomeKitADK/PAL/POSIX/HAPPlatformTCPStreamManager+Init.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","HAPPlatformTCPStreamManagerRef"
 +"HAP_srp_verifier","../../apps/netutils/homekit/HomeKitADK/PAL/HAPCrypto.h","defined(CONFIG_NETUTILS_HOMEKIT)","void","uint8_t [], const uint8_t [], const uint8_t *, size_t, const uint8_t *, size_t"
++"accessoryInformationService","../../apps/netutils/homekit/HomeKitADK/Applications/Lightbulb/DB.h","defined(CONFIG_NETUTILS_HOMEKIT)","const HAPService"
 diff --git a/tools/mksymtab.c b/tools/mksymtab.c
 index 0c54f4b275..2c2c9404a0 100644
 --- a/tools/mksymtab.c

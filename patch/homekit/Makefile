@@ -21,6 +21,7 @@
 include $(APPDIR)/Make.defs
 
 CSRCS += \
+  HomeKitADK/Applications/Lightbulb/DB.c \
   HomeKitADK/External/Base64/util_base64.c \
   HomeKitADK/External/HTTP/util_http_reader.c \
   HomeKitADK/External/JSON/util_json_reader.c \

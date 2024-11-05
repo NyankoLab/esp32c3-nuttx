@@ -1,3 +1,29 @@
+diff --git a/Applications/Lightbulb/App.h b/Applications/Lightbulb/App.h
+index 3c00ae2..c5338a7 100644
+--- a/Applications/Lightbulb/App.h
++++ b/Applications/Lightbulb/App.h
+@@ -87,7 +87,7 @@ void RestorePlatformFactorySettings(void);
+ /**
+  * Returns pointer to accessory information
+  */
+-const HAPAccessory* AppGetAccessoryInfo();
++const HAPAccessory* AppGetAccessoryInfo(void);
+ 
+ #if __has_feature(nullability)
+ #pragma clang assume_nonnull end
+diff --git a/Applications/Lightbulb/DB.h b/Applications/Lightbulb/DB.h
+index 0a10376..6ec1ea5 100644
+--- a/Applications/Lightbulb/DB.h
++++ b/Applications/Lightbulb/DB.h
+@@ -14,7 +14,7 @@
+ extern "C" {
+ #endif
+ 
+-#include "HAP.h"
++#include "../../HAP/HAP.h"
+ 
+ #if __has_feature(nullability)
+ #pragma clang assume_nonnull begin
 diff --git a/External/HTTP/util_http_reader.h b/External/HTTP/util_http_reader.h
 index 57b1259..63d397b 100644
 --- a/External/HTTP/util_http_reader.h

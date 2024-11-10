@@ -530,6 +530,52 @@ index cd4a73e..78ca374 100644
  #if defined(__clang__) || (defined(__GNUC__) && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)))
  /**@cond */
  #define HAP_DISALLOW_USE_(directive) _Pragma(#directive)
+diff --git a/PAL/HAPBase.h b/PAL/HAPBase.h
+index ae63936..d216b64 100644
+--- a/PAL/HAPBase.h
++++ b/PAL/HAPBase.h
+@@ -1522,4 +1522,41 @@ HAP_NONNULL_SUPPORT(HAPSetupPayload)
+ }
+ #endif
+ 
++#if 0
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <math.h>
++#define HAPRawBufferZero                                                    bzero
++#define HAPRawBufferCopyBytes                                               memmove
++#define HAPRawBufferAreEqual(bytes, otherBytes, numBytes)                   (memcmp(bytes, otherBytes, numBytes) ? false : true)
++#define HAPRawBufferIsZero(bytes, numBytes)                                 true
++#define HAPInt32GetNumDescriptionBytes(value)                               snprintf(NULL, 0, "%d", (int)value)
++#define HAPUInt64GetNumDescriptionBytes(value)                              sizeof(value) <= sizeof(int) \
++                                                                            ? snprintf(NULL, 0, "%u", (int)value) \
++                                                                            : snprintf(NULL, 0, "%llu", (unsigned long long)value)
++#define HAPUInt64GetDescription(value, bytes, maxBytes)                     kHAPError_None; sizeof(value) <= sizeof(int) \
++                                                                            ? snprintf(bytes, maxBytes, "%u", (int)value) \
++                                                                            : snprintf(bytes, maxBytes, "%llu", (unsigned long long)value)
++#define HAPUInt64GetHexDescription(value, bytes, maxBytes, letterCase)      kHAPError_None; sizeof(value) <= sizeof(int) \
++                                                                            ? snprintf(bytes, maxBytes, letterCase == 'a' ? "%x" : "%X", (int)value) \
++                                                                            : snprintf(bytes, maxBytes, letterCase == 'a' ? "%llx" : "%llX", (unsigned long long)value)
++#define HAPUInt64FromString(description, value)                             kHAPError_None; (*value = strtoull(description, NULL, 10))
++#define HAPInt64FromString(description, value)                              kHAPError_None; (*value = strtoll(description, NULL, 10))
++#define HAPFloatFromBitPattern(bitPattern)                                  *(float*)&bitPattern
++#define HAPFloatGetBitPattern(value)                                        *(uint32_t*)&value
++#define HAPFloatFromString(description, value)                              kHAPError_None; (*value = strtof(description, NULL))
++#define HAPFloatGetDescription(bytes, maxBytes, value)                      kHAPError_None; snprintf(bytes, maxBytes, "%f", value)
++#define HAPFloatGetAbsoluteValue                                            fabs
++#define HAPFloatGetFraction(value)                                          fmodf(value, 1.0f)
++#define HAPFloatIsZero(value)                                               (value == 0.0f)
++#define HAPFloatIsFinite                                                    isfinite
++#define HAPFloatIsInfinite                                                  isinf
++#define HAPStringWithFormat(bytes, maxBytes, ...)                           kHAPError_None; snprintf(bytes, maxBytes, __VA_ARGS__)
++#define HAPStringWithFormatAndArguments(bytes, maxBytes, format, va_list)   kHAPError_None; vsnprintf(bytes, maxBytes, format, va_list)
++#define HAPStringGetNumBytes                                                strlen
++#define HAPStringAreEqual(string, otherString)                              (strcmp(string, otherString) ? false : true)
++#define HAPUTF8IsValidData(bytes, numBytes)                                 (numBytes == numBytes)
++#endif
++
+ #endif
 diff --git a/PAL/HAPLog.c b/PAL/HAPLog.c
 index b868952..7e1cf59 100644
 --- a/PAL/HAPLog.c
@@ -744,18 +790,42 @@ index 0bf2c6c..f58e57c 100644
  #if __has_feature(nullability)
  #pragma clang assume_nonnull begin
 diff --git a/PAL/POSIX/HAPPlatformLog+Init.h b/PAL/POSIX/HAPPlatformLog+Init.h
-index 1db273a..f4fe6ed 100644
+index 1db273a..33e0a30 100644
 --- a/PAL/POSIX/HAPPlatformLog+Init.h
 +++ b/PAL/POSIX/HAPPlatformLog+Init.h
-@@ -11,7 +11,7 @@
+@@ -11,7 +11,8 @@
  extern "C" {
  #endif
  
 -#include "HAPPlatform.h"
 +#include "../HAPPlatform.h"
++#include "../HAPLog.h"
  
  #if __has_feature(nullability)
  #pragma clang assume_nonnull begin
+@@ -37,6 +38,10 @@ void HAPPlatformLogPOSIXError(
+         const char* file,
+         int line);
+ 
++#if HAP_LOG_LEVEL == 0
++#define HAPPlatformLogPOSIXError(type, message, errorNumber, function, file, line) (void)errorNumber
++#endif
++
+ #if __has_feature(nullability)
+ #pragma clang assume_nonnull end
+ #endif
+diff --git a/PAL/POSIX/HAPPlatformLog.c b/PAL/POSIX/HAPPlatformLog.c
+index 7c58009..52fe22e 100644
+--- a/PAL/POSIX/HAPPlatformLog.c
++++ b/PAL/POSIX/HAPPlatformLog.c
+@@ -16,6 +16,7 @@
+ 
+ #include "HAP.h"
+ #include "HAPPlatformLog+Init.h"
++#undef HAPPlatformLogPOSIXError
+ 
+ #ifdef __linux__
+ #if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200112L
 diff --git a/PAL/POSIX/HAPPlatformMFiHWAuth+Init.h b/PAL/POSIX/HAPPlatformMFiHWAuth+Init.h
 index 65819e7..c88897f 100644
 --- a/PAL/POSIX/HAPPlatformMFiHWAuth+Init.h

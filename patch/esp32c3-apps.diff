@@ -1,3 +1,16 @@
+diff --git a/include/netutils/httpd.h b/include/netutils/httpd.h
+index d0933d356..14b69504a 100644
+--- a/include/netutils/httpd.h
++++ b/include/netutils/httpd.h
+@@ -76,7 +76,7 @@
+ #  error "You need to enable TCP/IP (i.e. CONFIG_NET_TCP) to use HTTPD"
+ #endif
+ 
+-#define HTTPD_IOBUFFER_SIZE (3*MIN_TCP_MSS)
++#define HTTPD_IOBUFFER_SIZE (3*1446)
+ 
+ /* This is the maximum size of a file path */
+ 
 diff --git a/netutils/dhcpd/dhcpd.c b/netutils/dhcpd/dhcpd.c
 index 2f8f280d5..d53a33c38 100644
 --- a/netutils/dhcpd/dhcpd.c
@@ -32,7 +45,7 @@ index 01c49c0f7..8c1f259a4 100644
   
       /** @brief The sending message queue. */
 diff --git a/netutils/webserver/httpd.c b/netutils/webserver/httpd.c
-index 4602e65e9..8e8c9fb6f 100644
+index 4602e65e9..740d0601e 100644
 --- a/netutils/webserver/httpd.c
 +++ b/netutils/webserver/httpd.c
 @@ -139,7 +139,7 @@
